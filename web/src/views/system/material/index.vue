@@ -128,11 +128,11 @@
             <a-form-item label="配置选项 Option (JSON 语法结构)" required v-if="materialForm.category === 'echarts' || materialForm.category === 'geojson'">
               <template #extra>
                 <div class="json-tips">
-                  <span>配置必须符合有效的 JSON 结构。</span>
+                  <span>配置必须符合有效的 JSON 结构 。</span>
                   <a-link type="primary" size="mini" @click="formatJsonString">美化格式</a-link>
                 </div>
               </template>
-              <a-textarea v-model="configJsonStr" placeholder="请输入核心配置选项" :auto-size="{ minRows: 8, maxRows: 12 }" class="code-editor" @input="debouncedUpdatePreview" />
+              <a-textarea v-model="configJsonStr" placeholder="请输入核心配置选项" :auto-size="{ minRows: 8, maxRows: 12 }" class="code-editor" @input="debouncedUpdatePreview" @keydown="handleJsonEditorKeydown" />
               <div v-if="jsonSyntaxError" class="json-error-msg">{{ jsonSyntaxError }}</div>
             </a-form-item>
 
@@ -620,6 +620,14 @@ function formatJsonString() {
     jsonSyntaxError.value = ''
   } catch (e: any) {
     jsonSyntaxError.value = '格式化失败: ' + e.message
+  }
+}
+
+// Handle Shift+Alt+F keyboard shortcut for formatting JSON
+function handleJsonEditorKeydown(e: KeyboardEvent) {
+  if (e.shiftKey && e.altKey && (e.key === 'f' || e.key === 'F')) {
+    e.preventDefault()
+    formatJsonString()
   }
 }
 

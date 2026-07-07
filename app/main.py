@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 from app.core.config import settings
 from app.api.v1.router import api_router
 from app.core.database import engine, Base, SessionLocal
@@ -11,13 +12,22 @@ from app.models.user import User
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 自动创建数据库表 (如果不存在)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    
-    # 自动初始化种子数据 (admin/editor 账号)
-    async with SessionLocal() as db:
-        await seed_default_users(db)
+    # 检查数据库是否已经初始化（通过尝试查询 users 表来判断）
+    db_initialized = False
+    try:
+        async with SessionLocal() as db:
+            await db.execute(text("SELECT 1 FROM users LIMIT 1"))
+            db_initialized = True
+    except Exception:
+        pass
+
+    if not db_initialized:
+        # 只有在数据库未初始化时，才自动创建数据库表和初始化种子数据
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        
+        async with SessionLocal() as db:
+            await seed_default_users(db)
         
     yield
 
