@@ -30,6 +30,10 @@ export function deleteMyMaterial(id: number | string) {
   return request.delete(`/materials/my/${id}`)
 }
 
+export function deleteFile(fileUrl: string) {
+  return request.delete('/materials/delete-file', { params: { file_url: fileUrl } })
+}
+
 export function uploadFile(formData: FormData, folder: string = 'assets') {
   return request.post('/materials/upload', formData, {
     params: { folder },

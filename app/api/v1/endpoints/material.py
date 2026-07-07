@@ -31,6 +31,33 @@ async def upload_material_file(
             detail=f"文件上传失败: {str(e)}"
         )
 
+@router.delete("/delete-file")
+async def delete_material_file(
+    file_url: str = Query(..., description="要删除的静态资源文件 URL"),
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    物理删除指定的静态资源文件，支持本地和对象存储 (S3/OSS)
+    """
+    if not file_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="文件 URL 不能为空"
+        )
+    provider = await StorageManager.get_provider(db)
+    try:
+        success = await provider.delete_file(file_url)
+        if success:
+            return {"message": "文件删除成功"}
+        else:
+            return {"message": "文件不存在或未被删除"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"文件删除失败: {str(e)}"
+        )
+
 @router.get("/official", response_model=List[MaterialOut])
 async def list_official_materials(
     category: Optional[str] = None,

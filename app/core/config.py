@@ -22,6 +22,15 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080
     DATABASE_URL: str = "sqlite+aiosqlite:///./sqlite.db"
     
+    # Storage settings (Local or OSS/S3 bucket)
+    STORAGE_TYPE: str = "local" # local or oss
+    STORAGE_OSS_ENDPOINT: str = "http://127.0.0.1:9000"
+    STORAGE_OSS_BUCKET: str = "bigscreen"
+    STORAGE_OSS_ACCESS_KEY: str = ""
+    STORAGE_OSS_SECRET_KEY: str = ""
+    STORAGE_OSS_REGION: str = "us-east-1"
+    STORAGE_OSS_DOMAIN: str = "" # CDN or custom domain URL prefix
+    
     # Timezone settings
     TIMEZONE: str = "Asia/Shanghai"
     

@@ -22,7 +22,7 @@
 
       <!-- ECharts Component Sandboxed Preview -->
       <div 
-        v-else-if="material?.category === 'echarts'" 
+        v-else-if="material?.category === 'echarts' || material?.category === 'geojson'" 
         class="chart-preview-container-wrapper"
       >
         <div class="preview-theme-bar">
@@ -47,7 +47,7 @@
       <!-- Raw Configuration JSON Preview (e.g. Map GeoJSON, configs) -->
       <div v-else class="raw-preview">
         <div class="category-tag">分类: {{ material?.category }}</div>
-        <pre class="json-content"><code>{{ JSON.stringify(material?.config_data || {}, null, 2) }}</code></pre>
+        <pre class="json-content"><code>{{ previewContent }}</code></pre>
       </div>
     </div>
   </a-modal>
@@ -57,6 +57,7 @@
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { IconExclamationCircleFill } from '@arco-design/web-vue/es/icon'
 import { resolveImageUrl } from '../utils'
+import { getOfficialMaterials } from '../api/material'
 
 // Dynamic import for ECharts to prevent crash if not yet installed
 let echartsModule: any = null
@@ -88,6 +89,50 @@ const chartRef = ref<HTMLDivElement | null>(null)
 let chartInstance: any = null
 const chartError = ref('')
 const previewTheme = ref<'dark' | 'light'>('dark')
+const previewContent = ref('')
+
+async function loadGeoJsonData(configData: any): Promise<any> {
+  if (!configData) return null
+  if (configData.url) {
+    try {
+      const res = await fetch(resolveImageUrl(configData.url))
+      if (res.ok) {
+        return await res.json()
+      }
+      throw new Error(`HTTP ${res.status}`)
+    } catch (e: any) {
+      console.error('Failed to fetch GeoJSON from URL:', e)
+      return null
+    }
+  }
+  return configData
+}
+
+async function loadPreviewContent() {
+  previewContent.value = ''
+  if (!props.material) return
+  if (props.material.category === 'geojson') {
+    const config = props.material.config_data
+    if (config && config.url) {
+      previewContent.value = '正在加载 GeoJSON 地图数据...'
+      try {
+        const res = await fetch(resolveImageUrl(config.url))
+        if (res.ok) {
+          const data = await res.json()
+          previewContent.value = JSON.stringify(data, null, 2)
+        } else {
+          previewContent.value = '加载 GeoJSON 文件失败: HTTP ' + res.status
+        }
+      } catch (err: any) {
+        previewContent.value = '加载 GeoJSON 文件失败: ' + err.message
+      }
+    } else {
+      previewContent.value = JSON.stringify(config || {}, null, 2)
+    }
+  } else {
+    previewContent.value = JSON.stringify(props.material.config_data || {}, null, 2)
+  }
+}
 
 function handleThemeChange() {
   initChartSandbox()
@@ -133,14 +178,30 @@ function handleClose() {
 function handleOpen() {
   chartError.value = ''
   previewTheme.value = 'dark'
-  if (props.material?.category === 'echarts') {
+  if (props.material?.category === 'echarts' || props.material?.category === 'geojson') {
     nextTick(() => {
       initChartSandbox()
     })
+  } else {
+    loadPreviewContent()
   }
 }
 
-function initChartSandbox() {
+function findMapName(option: any): string | null {
+  if (!option) return null
+  if (option.geo && option.geo.map) return option.geo.map
+  if (option.series) {
+    const list = Array.isArray(option.series) ? option.series : [option.series]
+    for (const s of list) {
+      if ((s?.type === 'map' || s?.type === 'map3D') && s.map) {
+        return s.map
+      }
+    }
+  }
+  return null
+}
+
+async function initChartSandbox() {
   if (!chartRef.value) return
   if (chartInstance) {
     chartInstance.dispose()
@@ -152,7 +213,84 @@ function initChartSandbox() {
   }
 
   try {
-    const option = props.material?.config_data || {}
+    let option: any = null
+    
+    if (props.material?.category === 'geojson') {
+      const geoJsonData = await loadGeoJsonData(props.material.config_data)
+      if (geoJsonData) {
+        const mapName = 'preview_map_' + props.material.id
+        echartsModule.registerMap(mapName, geoJsonData)
+        option = {
+          backgroundColor: 'transparent',
+          tooltip: {
+            show: true,
+            trigger: 'item',
+            formatter: '{b}'
+          },
+          series: [{
+            name: '地图预览',
+            type: 'map',
+            map: mapName,
+            roam: true,
+            label: {
+              show: true,
+              color: '#e2e8f0',
+              fontSize: 10
+            },
+            itemStyle: {
+              areaColor: '#1e293b',
+              borderColor: '#38bdf8',
+              borderWidth: 1
+            },
+            emphasis: {
+              label: {
+                show: true,
+                color: '#ffffff'
+              },
+              itemStyle: {
+                areaColor: '#0ea5e9'
+              }
+            }
+          }]
+        }
+      } else {
+        throw new Error('地图数据加载失败或为空')
+      }
+    } else {
+      // ECharts
+      option = props.material?.config_data || {}
+      
+      // Register map if _geoJsonId exists
+      if (option._geoJsonId) {
+        try {
+          const res: any = await getOfficialMaterials('geojson')
+          const ids = Array.isArray(option._geoJsonId) ? option._geoJsonId : [option._geoJsonId]
+          for (const id of ids) {
+            const geoJsonMaterial = (res || []).find((item: any) => item.id === id)
+            if (geoJsonMaterial && geoJsonMaterial.config_data) {
+              const geoJsonData = await loadGeoJsonData(geoJsonMaterial.config_data)
+              if (geoJsonData) {
+                if (ids.length === 1) {
+                  const mapName = findMapName(option) || 'custom_map'
+                  echartsModule.registerMap(mapName, geoJsonData)
+                }
+                echartsModule.registerMap(`map_${id}`, geoJsonData)
+                if (geoJsonMaterial.name) {
+                  echartsModule.registerMap(geoJsonMaterial.name, geoJsonData)
+                }
+                if (geoJsonMaterial.config_data.filename) {
+                  const baseName = geoJsonMaterial.config_data.filename.replace(/\.json$/i, '')
+                  echartsModule.registerMap(baseName, geoJsonData)
+                }
+              }
+            }
+          }
+        } catch (mapErr) {
+          console.error('Failed to register map geojson:', mapErr)
+        }
+      }
+    }
+    
     const theme = previewTheme.value === 'dark' ? 'dark' : undefined
     
     chartInstance = echartsModule.init(chartRef.value, theme, {
@@ -176,10 +314,14 @@ function handleResize() {
 }
 
 watch(() => props.material, () => {
-  if (props.visible && props.material?.category === 'echarts') {
-    nextTick(() => {
-      initChartSandbox()
-    })
+  if (props.visible) {
+    if (props.material?.category === 'echarts' || props.material?.category === 'geojson') {
+      nextTick(() => {
+        initChartSandbox()
+      })
+    } else {
+      loadPreviewContent()
+    }
   }
 }, { deep: true })
 

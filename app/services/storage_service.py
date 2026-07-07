@@ -223,25 +223,45 @@ class StorageManager:
     @classmethod
     async def get_provider(cls, db: AsyncSession) -> StorageProvider:
         """
-        Dynamically construct and return the storage provider configured in the DB.
+        Dynamically construct and return the storage provider configured in the Settings/DB.
         """
-        configs = await cls._fetch_storage_configs(db)
-        config_type = configs.get("sys.storage.type", "local")
+        from app.core.config import settings
+
+        # Read from environment settings first
+        config_type = settings.STORAGE_TYPE
+        endpoint = settings.STORAGE_OSS_ENDPOINT
+        bucket = settings.STORAGE_OSS_BUCKET
+        access_key = settings.STORAGE_OSS_ACCESS_KEY
+        secret_key = settings.STORAGE_OSS_SECRET_KEY
+        region = settings.STORAGE_OSS_REGION
+        custom_domain = settings.STORAGE_OSS_DOMAIN
+
+        # Fallback to database configurations if not explicitly configured in env
+        if config_type == "local" or not access_key:
+            configs = await cls._fetch_storage_configs(db)
+            if configs.get("sys.storage.type") == "oss":
+                config_type = "oss"
+                endpoint = configs.get("sys.storage.oss.endpoint", "")
+                bucket = configs.get("sys.storage.oss.bucket", "")
+                access_key = configs.get("sys.storage.oss.access_key", "")
+                secret_key = configs.get("sys.storage.oss.secret_key", "")
+                region = configs.get("sys.storage.oss.region", "")
+                custom_domain = configs.get("sys.storage.oss.domain", "")
 
         # Create a simple hash key to check if configuration changed
-        config_signature = f"{config_type}|{configs.get('sys.storage.oss.endpoint')}|{configs.get('sys.storage.oss.bucket')}|{configs.get('sys.storage.oss.access_key')}"
+        config_signature = f"{config_type}|{endpoint}|{bucket}|{access_key}"
 
         if cls._instance is None or cls._current_config_hash != config_signature:
             logger.info(f"Loading/Updating Storage Provider configuration: {config_type}")
             if config_type == "oss":
                 try:
                     cls._instance = OSSStorageProvider(
-                        endpoint=configs.get("sys.storage.oss.endpoint", ""),
-                        bucket=configs.get("sys.storage.oss.bucket", ""),
-                        access_key=configs.get("sys.storage.oss.access_key", ""),
-                        secret_key=configs.get("sys.storage.oss.secret_key", ""),
-                        region=configs.get("sys.storage.oss.region", ""),
-                        custom_domain=configs.get("sys.storage.oss.domain", "")
+                        endpoint=endpoint,
+                        bucket=bucket,
+                        access_key=access_key,
+                        secret_key=secret_key,
+                        region=region,
+                        custom_domain=custom_domain
                     )
                 except Exception as e:
                     logger.error(f"Failed to initialize OSSStorageProvider: {e}. Falling back to local storage.")

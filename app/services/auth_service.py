@@ -416,6 +416,53 @@ async def seed_default_users(db: AsyncSession) -> None:
                             "image": ""
                         },
                         create_by="admin"
+                    ),
+                    Material(
+                        name="内置图形组件模版",
+                        category="echarts",
+                        subcategory="graphic",
+                        thumbnail="",
+                        is_official=True,
+                        config_data={
+                            "graphic": {
+                                "type": "group",
+                                "left": "center",
+                                "top": "center",
+                                "children": [
+                                    {
+                                        "type": "rect",
+                                        "z": 100,
+                                        "left": "center",
+                                        "top": "center",
+                                        "shape": {
+                                            "width": 320,
+                                            "height": 60
+                                        },
+                                        "style": {
+                                            "fill": "rgba(255, 255, 255, 0.1)",
+                                            "stroke": "#38bdf8",
+                                            "lineWidth": 2,
+                                            "shadowBlur": 10,
+                                            "shadowColor": "rgba(56, 189, 248, 0.3)",
+                                            "shadowOffsetX": 0,
+                                            "shadowOffsetY": 0
+                                        }
+                                    },
+                                    {
+                                        "type": "text",
+                                        "z": 100,
+                                        "left": "center",
+                                        "top": "center",
+                                        "style": {
+                                            "fill": "#38bdf8",
+                                            "text": "ECharts Graphic 组件效果展示",
+                                            "font": "bold 16px sans-serif"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        create_by="admin"
                     )
                 ]
                 db.add_all(official_mats)
