@@ -23,38 +23,40 @@
         </div>
       </template>
 
-      <a-table :loading="loading" :data="tableData" row-key="id" :columns="columns" :pagination="pagination"
-        @page-change="onPageChange" :bordered="false">
-        
-        <template #type="{ record }">
-          <a-tag :color="getTypeTagColor(record.type)">
-            {{ getTypeText(record.type) }}
-          </a-tag>
-        </template>
+      <a-scrollbar style="height: calc(100vh - 240px); overflow: auto;">
+        <a-table :loading="loading" :data="tableData" row-key="id" :columns="columns" :pagination="pagination"
+          @page-change="onPageChange" :bordered="false">
+          
+          <template #type="{ record }">
+            <a-tag :color="getTypeTagColor(record.type)">
+              {{ getTypeText(record.type) }}
+            </a-tag>
+          </template>
 
-        <!-- Removed recipient template as all notices default to all users -->
+          <!-- Removed recipient template as all notices default to all users -->
 
-        <template #create_time="{ record }">
-          <span>{{ formatDate(record.create_time) }}</span>
-        </template>
+          <template #create_time="{ record }">
+            <span>{{ formatDate(record.create_time) }}</span>
+          </template>
 
-        <template #sys_create_time="{ record }">
-          <span>{{ formatDate(record.sys_create_time) }}</span>
-        </template>
+          <template #sys_create_time="{ record }">
+            <span>{{ formatDate(record.sys_create_time) }}</span>
+          </template>
 
-        <template #expire_time="{ record }">
-          <span>{{ record.expire_time ? formatDate(record.expire_time) : '永久有效' }}</span>
-        </template>
+          <template #expire_time="{ record }">
+            <span>{{ record.expire_time ? formatDate(record.expire_time) : '永久有效' }}</span>
+          </template>
 
-        <template #optional="{ record }">
-          <div class="table-actions">
-            <a-link type="primary" @click="handleViewDetail(record)">查看详情</a-link>
-            <a-link type="primary" @click="handleShowReadUsers(record)">已读列表</a-link>
-            <a-link type="primary" @click="handleUpdate(record)">编辑</a-link>
-            <a-link status="danger" @click="handleDelete(record)">删除</a-link>
-          </div>
-        </template>
-      </a-table>
+          <template #optional="{ record }">
+            <div class="table-actions">
+              <a-link type="primary" @click="handleViewDetail(record)">查看详情</a-link>
+              <a-link type="primary" @click="handleShowReadUsers(record)">已读列表</a-link>
+              <a-link type="primary" @click="handleUpdate(record)">编辑</a-link>
+              <a-link status="danger" @click="handleDelete(record)">删除</a-link>
+            </div>
+          </template>
+        </a-table>
+      </a-scrollbar>
     </a-card>
 
     <!-- Create/Edit Modal Dialog -->
@@ -93,7 +95,7 @@
     <DetailModal v-model:visible="detailVisible" :notification="selectedNotice" />
 
     <!-- Read Users Modal -->
-    <a-modal v-model:visible="readListVisible" title="已读人员列表" width="400px" :footer="null" align-center>
+    <a-modal v-model:visible="readListVisible" title="已读人员列表" width="400px" :footer="false" align-center>
       <div class="read-users-list">
         <a-list :loading="readUsersLoading" :bordered="false" size="small">
           <a-list-item v-for="user in readUsers" :key="user.user_id">
@@ -188,10 +190,6 @@ async function fetchUsers() {
   }
 }
 
-function getUserName(userId: number) {
-  const user = userOptions.value.find(u => u.id === userId)
-  return user ? `${user.nickname} (${user.username})` : `用户 ID: ${userId}`
-}
 
 async function getList() {
   loading.value = true
@@ -429,3 +427,4 @@ onMounted(() => {
   padding-top: 0 !important;
 }
 </style>
+

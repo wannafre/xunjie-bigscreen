@@ -5,6 +5,7 @@ import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import ArcoVue from '@arco-design/web-vue'
 import '@arco-design/web-vue/dist/arco.css'
+import './style.css'
 import ArcoVueIcon from '@arco-design/web-vue/es/icon'
 
 import App from './App.vue'

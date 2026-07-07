@@ -22,49 +22,51 @@
         </div>
       </template>
 
-      <a-table :loading="loading" :data="tableData" row-key="id" :columns="columns" :pagination="pagination"
-        @page-change="onPageChange" :bordered="false">
-        <template #sex="{ record }">
-          <a-tag :color="dictStore.getDictTagColor('sys_user_sex', record.sex)">
-            {{ dictStore.getDictLabel('sys_user_sex', record.sex) }}
-          </a-tag>
-        </template>
+      <a-scrollbar style="height: calc(100vh - 240px); overflow: auto;">
+        <a-table :loading="loading" :data="tableData" row-key="id" :columns="columns" :pagination="pagination"
+          @page-change="onPageChange" :bordered="false">
+          <template #sex="{ record }">
+            <a-tag :color="dictStore.getDictTagColor('sys_user_sex', record.sex)">
+              {{ dictStore.getDictLabel('sys_user_sex', record.sex) }}
+            </a-tag>
+          </template>
 
-        <template #status="{ record }">
-          <a-tag :color="record.status === '0' ? 'green' : 'red'">
-            {{ dictStore.getDictLabel('general_status', record.status) }}
-          </a-tag>
-        </template>
+          <template #status="{ record }">
+            <a-tag :color="record.status === '0' ? 'green' : 'red'">
+              {{ dictStore.getDictLabel('general_status', record.status) }}
+            </a-tag>
+          </template>
 
-        <template #roles="{ record }">
-          <span v-if="record.roles && record.roles.length > 0">
-            <a-tag v-for="role in record.roles" :key="role" color="blue" style="margin-right: 4px;">{{ role }}</a-tag>
-          </span>
-          <span v-else class="text-secondary">-</span>
-        </template>
+          <template #roles="{ record }">
+            <span v-if="record.roles && record.roles.length > 0">
+              <a-tag v-for="role in record.roles" :key="role" color="blue" style="margin-right: 4px;">{{ role }}</a-tag>
+            </span>
+            <span v-else class="text-secondary">-</span>
+          </template>
 
-        <template #login_date="{ record }">
-          <span>{{ record.login_date ? formatDate(record.login_date) : '-' }}</span>
-        </template>
+          <template #login_date="{ record }">
+            <span>{{ record.login_date ? formatDate(record.login_date) : '-' }}</span>
+          </template>
 
-        <template #create_time="{ record }">
-          <span>{{ formatDate(record.create_time) }}</span>
-        </template>
+          <template #create_time="{ record }">
+            <span>{{ formatDate(record.create_time) }}</span>
+          </template>
 
-        <template #optional="{ record }">
-          <div class="table-actions">
-            <a-link type="primary" @click="handleUpdate(record)">修改</a-link>
-            <a-link
-              v-if="record.username !== 'admin' && record.username !== userStore.username"
-              status="warning"
-              @click="handleResetPwd(record)"
-            >
-              重置密码
-            </a-link>
-            <a-link status="danger" @click="handleDelete(record)">删除</a-link>
-          </div>
-        </template>
-      </a-table>
+          <template #optional="{ record }">
+            <div class="table-actions">
+              <a-link type="primary" @click="handleUpdate(record)">修改</a-link>
+              <a-link
+                v-if="record.username !== 'admin' && record.username !== userStore.username"
+                status="warning"
+                @click="handleResetPwd(record)"
+              >
+                重置密码
+              </a-link>
+              <a-link status="danger" @click="handleDelete(record)">删除</a-link>
+            </div>
+          </template>
+        </a-table>
+      </a-scrollbar>
     </a-card>
 
     <!-- Dialog -->

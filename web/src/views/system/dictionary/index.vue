@@ -3,7 +3,7 @@
     <a-card title="字典管理" class="box-card" :bordered="false">
       <a-row :gutter="16">
         <!-- Left panel: Dictionary Type -->
-        <a-col :span="8">
+        <a-col :span="9">
           <div class="dict-left-panel">
             <div class="dict-panel-header">
               <span class="dict-panel-title">字典类型</span>
@@ -13,31 +13,31 @@
               </a-button>
             </div>
             <div class="dict-list">
-              <div 
-                v-for="dict in dictTypes" 
-                :key="dict.dict_type" 
-                :class="['dict-list-item', selectedDictType === dict.dict_type ? 'active' : '']" 
-                @click="selectDictType(dict.dict_type)"
-              >
-                <div class="dict-item-text">
-                  <span class="dict-name">{{ dict.dict_name }}</span>
-                  <span class="dict-code">{{ dict.dict_type }}</span>
+                <div 
+                  v-for="dict in dictTypes" 
+                  :key="dict.dict_type" 
+                  :class="['dict-list-item', selectedDictType === dict.dict_type ? 'active' : '']" 
+                  @click="selectDictType(dict.dict_type)"
+                >
+                  <div class="dict-item-text">
+                    <span class="dict-name">{{ dict.dict_name }}</span>
+                    <span class="dict-code">{{ dict.dict_type }}</span>
+                  </div>
+                  <div class="dict-item-actions">
+                    <a-button size="mini" type="text" @click.stop="handleUpdateType(dict)">
+                      <template #icon><IconEdit /></template>
+                    </a-button>
+                    <a-button size="mini" type="text" status="danger" @click.stop="handleDeleteType(dict)">
+                      <template #icon><IconDelete /></template>
+                    </a-button>
+                  </div>
                 </div>
-                <div class="dict-item-actions">
-                  <a-button size="mini" type="text" @click.stop="handleUpdateType(dict)">
-                    <template #icon><IconEdit /></template>
-                  </a-button>
-                  <a-button size="mini" type="text" status="danger" @click.stop="handleDeleteType(dict)">
-                    <template #icon><IconDelete /></template>
-                  </a-button>
-                </div>
-              </div>
             </div>
           </div>
         </a-col>
 
         <!-- Right panel: Dictionary Data -->
-        <a-col :span="16">
+        <a-col :span="15">
           <div class="dict-right-panel">
             <div class="dict-panel-header">
               <span class="dict-panel-title">字典项列表 <span v-if="selectedDictType" class="selected-badge">({{ selectedDictType }})</span></span>
@@ -48,19 +48,19 @@
             </div>
             
             <a-table :loading="dataLoading" :data="dictDataList" :columns="dataColumns" :pagination="false" :bordered="false">
-              <template #status="{ record }">
-                <a-tag :color="record.status === '0' ? 'green' : 'red'">
-                  {{ record.status === '0' ? '正常' : '停用' }}
-                </a-tag>
-              </template>
-              
-              <template #optional="{ record }">
-                <div class="table-actions">
-                  <a-link type="primary" @click="handleUpdateData(record)">修改</a-link>
-                  <a-link status="danger" @click="handleDeleteData(record)">删除</a-link>
-                </div>
-              </template>
-            </a-table>
+                <template #status="{ record }">
+                  <a-tag :color="record.status === '0' ? 'green' : 'red'">
+                    {{ record.status === '0' ? '正常' : '停用' }}
+                  </a-tag>
+                </template>
+                
+                <template #optional="{ record }">
+                  <div class="table-actions">
+                    <a-link type="primary" @click="handleUpdateData(record)">修改</a-link>
+                    <a-link status="danger" @click="handleDeleteData(record)">删除</a-link>
+                  </div>
+                </template>
+              </a-table>
           </div>
         </a-col>
       </a-row>
@@ -402,8 +402,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 440px;
-  overflow-y: auto;
 }
 .dict-list-item {
   display: flex;
@@ -429,20 +427,29 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
+  min-width: 0;
 }
 .dict-name {
   font-size: 14px;
   font-weight: 500;
   color: #1D2129;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .dict-code {
   font-size: 11px;
   color: #86909C;
   font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .dict-item-actions {
   display: none;
   gap: 4px;
+  flex-shrink: 0;
 }
 .dict-list-item:hover .dict-item-actions {
   display: flex;

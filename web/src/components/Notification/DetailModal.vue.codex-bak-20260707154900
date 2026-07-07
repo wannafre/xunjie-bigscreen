@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <a-modal
     v-model:visible="visible"
     :title="notification?.title || '通知详情'"
@@ -6,7 +6,7 @@
     @cancel="handleClose"
     width="500px"
     align-center
-    :footer="false"
+    :footer="null"
     :lock-scroll="false"
   >
     <div v-if="notification" class="notice-detail-container">
@@ -131,4 +131,3 @@ function getTypeColor(type: string) {
   justify-content: flex-end;
 }
 </style>
-

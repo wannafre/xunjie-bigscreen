@@ -18,63 +18,64 @@
         </div>
       </template>
 
-      <!-- Upgraded Table content inside the layout -->
-      <a-table :loading="loading" :data="filteredTableData" row-key="id" :columns="columns"
-        v-model:expanded-keys="expandedKeys" :pagination="false" :bordered="false" class="menu-table">
-        <!-- Custom expand icon: Clean caret arrow instead of gray square +/- box -->
-        <template #expand-icon="{ expanded }">
-          <IconDown v-if="expanded" style="font-size: 12px; color: #4E5969;" />
-          <IconRight v-else style="font-size: 12px; color: #4E5969;" />
-        </template>
-        <!-- Custom menu icon render -->
-        <template #icon="{ record }">
-          <div class="icon-wrap-inner">
-            <component :is="getIconComponent(record.icon)" v-if="record.icon && record.icon !== '#'"
-              class="menu-icon" />
-            <span v-else class="text-secondary">-</span>
-          </div>
-        </template>
+      <a-scrollbar style="height: calc(100vh - 240px); overflow: auto;">
+        <a-table :loading="loading" :data="filteredTableData" row-key="id" :columns="columns"
+          v-model:expanded-keys="expandedKeys" :pagination="false" :bordered="false" class="menu-table">
+          <!-- Custom expand icon: Clean caret arrow instead of gray square +/- box -->
+          <template #expand-icon="{ expanded }">
+            <IconDown v-if="expanded" style="font-size: 12px; color: #4E5969;" />
+            <IconRight v-else style="font-size: 12px; color: #4E5969;" />
+          </template>
+          <!-- Custom menu icon render -->
+          <template #icon="{ record }">
+            <div class="icon-wrap-inner">
+              <component :is="getIconComponent(record.icon)" v-if="record.icon && record.icon !== '#'"
+                class="menu-icon" />
+              <span v-else class="text-secondary">-</span>
+            </div>
+          </template>
 
-        <!-- Custom combined path info column -->
-        <template #path_info="{ record }">
-          <div v-if="record.menu_type !== 'F'" class="path-details">
-            <div class="path-row font-mono">{{ record.path || '-' }}</div>
-            <div class="component-row font-mono" v-if="record.component">{{ record.component }}</div>
-          </div>
-          <span v-else class="text-secondary font-mono">-</span>
-        </template>
+          <!-- Custom combined path info column -->
+          <template #path_info="{ record }">
+            <div v-if="record.menu_type !== 'F'" class="path-details">
+              <div class="path-row font-mono">{{ record.path || '-' }}</div>
+              <div class="component-row font-mono" v-if="record.component">{{ record.component }}</div>
+            </div>
+            <span v-else class="text-secondary font-mono">-</span>
+          </template>
 
-        <!-- Styled Permission string -->
-        <template #perms="{ record }">
-          <span v-if="record.perms" class="permission-badge font-mono">{{ record.perms }}</span>
-          <span v-else class="text-secondary font-mono">-</span>
-        </template>
+          <!-- Styled Permission string -->
+          <template #perms="{ record }">
+            <span v-if="record.perms" class="permission-badge font-mono">{{ record.perms }}</span>
+            <span v-else class="text-secondary font-mono">-</span>
+          </template>
 
-        <!-- Styled Menu Type tag -->
-        <template #menu_type="{ record }">
-          <a-tag :color="getTypeTagColor(record.menu_type)" size="small" class="custom-type-tag">
-            {{ getTypeLabel(record.menu_type) }}
-          </a-tag>
-        </template>
+          <!-- Styled Menu Type tag -->
+          <template #menu_type="{ record }">
+            <a-tag :color="getTypeTagColor(record.menu_type)" size="small" class="custom-type-tag">
+              {{ getTypeLabel(record.menu_type) }}
+            </a-tag>
+          </template>
 
-        <!-- Styled Status tag -->
-        <template #status="{ record }">
-          <a-tag :color="record.status === '0' ? 'green' : 'red'" size="small">
-            {{ dictStore.getDictLabel('general_status', record.status) }}
-          </a-tag>
-        </template>
+          <!-- Styled Status tag -->
+          <template #status="{ record }">
+            <a-tag :color="record.status === '0' ? 'green' : 'red'" size="small">
+              {{ dictStore.getDictLabel('general_status', record.status) }}
+            </a-tag>
+          </template>
 
-        <!-- Operational actions with 'Add Child' shortcut -->
-        <template #optional="{ record }">
-          <div class="table-actions">
-            <a-link type="primary" @click="handleUpdate(record)">编辑</a-link>
-            <a-link type="primary" status="success" @click="handleCreateChild(record)" v-if="record.menu_type !== 'F'">
-              新增下级
-            </a-link>
-            <a-link status="danger" @click="handleDelete(record)">删除</a-link>
-          </div>
-        </template>
-      </a-table>
+          <!-- Operational actions with 'Add Child' shortcut -->
+          <template #optional="{ record }">
+            <div class="table-actions">
+              <a-link type="primary" @click="handleUpdate(record)">编辑</a-link>
+              <a-link type="primary" status="success" @click="handleCreateChild(record)" v-if="record.menu_type !== 'F'">
+                新增下级
+              </a-link>
+              <a-link status="danger" @click="handleDelete(record)">删除</a-link>
+            </div>
+          </template>
+        </a-table>
+      </a-scrollbar>
     </a-card>
 
     <!-- Menu Create/Edit Dialog -->
@@ -321,7 +322,11 @@ async function getList() {
 
     // Construct tree options for parent menu selection (excluding buttons)
     const rawMenus: any = await getMenuList()
-    const menuOptions = (rawMenus || []).filter((item: any) => item.menu_type !== 'F')
+    const menuOptions = (rawMenus || []).filter((item: any) => item.menu_type !== 'F').map((item: any) => {
+      const cleaned = { ...item }
+      delete cleaned.icon
+      return cleaned
+    })
     treeSelectData.value = [
       { id: 0, menu_name: '主类目', children: listToTree(menuOptions) }
     ]

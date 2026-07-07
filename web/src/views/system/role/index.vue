@@ -15,21 +15,23 @@
         </div>
       </template>
 
-      <a-table :loading="loading" :data="tableData" row-key="id" :columns="columns" :pagination="false"
-        :bordered="false">
-        <template #status="{ record }">
-          <a-tag :color="record.status === '0' ? 'green' : 'red'">
-            {{ dictStore.getDictLabel('general_status', record.status) }}
-          </a-tag>
-        </template>
+      <a-scrollbar style="height: calc(100vh - 240px); overflow: auto;">
+        <a-table :loading="loading" :data="tableData" row-key="id" :columns="columns" :pagination="false"
+          :bordered="false">
+          <template #status="{ record }">
+            <a-tag :color="record.status === '0' ? 'green' : 'red'">
+              {{ dictStore.getDictLabel('general_status', record.status) }}
+            </a-tag>
+          </template>
 
-        <template #optional="{ record }">
-          <div class="table-actions">
-            <a-link type="primary" @click="handleUpdate(record)">修改</a-link>
-            <a-link status="danger" @click="handleDelete(record)">删除</a-link>
-          </div>
-        </template>
-      </a-table>
+          <template #optional="{ record }">
+            <div class="table-actions">
+              <a-link type="primary" @click="handleUpdate(record)">修改</a-link>
+              <a-link status="danger" @click="handleDelete(record)">删除</a-link>
+            </div>
+          </template>
+        </a-table>
+      </a-scrollbar>
     </a-card>
 
     <!-- Dialog -->
