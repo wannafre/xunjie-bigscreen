@@ -32,13 +32,32 @@ async def seed_default_users(db: AsyncSession) -> None:
     Seeds default menus, buttons, roles, dicts, and admin/editor accounts if they don't already exist.
     """
     try:
-        # 1. 确保核心菜单存在
+        # 1. 确保顶级目录 "系统信息管理" 存在
+        res_p = await db.execute(select(Menu).filter(Menu.menu_type == "M", Menu.path == "system"))
+        system_cat = res_p.scalars().first()
+        if not system_cat:
+            system_cat = Menu(
+                menu_name="系统信息管理",
+                menu_type="M",
+                order_num=10,
+                path="system",
+                icon="Setting",
+                status="0",
+                visible="0"
+            )
+            db.add(system_cat)
+            await db.commit()
+            await db.refresh(system_cat)
+        p_id = system_cat.id
+
+        # 2. 确保核心菜单存在
         menu_items = [
-            {"name": "用户管理", "perms": "system:user:list", "path": "user", "order": 1},
-            {"name": "角色管理", "perms": "system:role:list", "path": "role", "order": 2},
-            {"name": "菜单管理", "perms": "system:menu:list", "path": "menu", "order": 3},
-            {"name": "字典管理", "perms": "system:dict:list", "path": "dict", "order": 4},
-            {"name": "通知管理", "perms": "system:notification:list", "path": "notification", "order": 5},
+            # {"name": "个人账号信息维护", "perms": None, "path": "account", "order": 11, "icon": "User"},
+            {"name": "用户管理", "perms": "system:user:list", "path": "user", "order": 12, "icon": "Avatar"},
+            {"name": "角色管理", "perms": "system:role:list", "path": "role", "order": 13, "icon": "Key"},
+            {"name": "菜单管理", "perms": "system:menu:list", "path": "menu", "order": 15, "icon": "Setting"},
+            {"name": "字典管理", "perms": "system:dict:list", "path": "dictionary", "order": 16, "icon": "Notebook"},
+            {"name": "通知管理", "perms": "system:notification:list", "path": "notification", "order": 17, "icon": "Bell"},
         ]
         
         menus_by_name = {}
@@ -46,10 +65,6 @@ async def seed_default_users(db: AsyncSession) -> None:
             res = await db.execute(select(Menu).filter(Menu.menu_name == item["name"], Menu.menu_type == "C"))
             menu_obj = res.scalars().first()
             if not menu_obj:
-                res_p = await db.execute(select(Menu).filter(Menu.menu_type == "M", Menu.path == "system"))
-                p_menu = res_p.scalars().first()
-                p_id = p_menu.id if p_menu else 0
-                
                 menu_obj = Menu(
                     menu_name=item["name"],
                     menu_type="C",
@@ -59,14 +74,30 @@ async def seed_default_users(db: AsyncSession) -> None:
                     order_num=item["order"],
                     parent_id=p_id,
                     status="0",
-                    visible="0"
+                    visible="0",
+                    icon=item.get("icon", "#")
                 )
                 db.add(menu_obj)
                 await db.commit()
                 await db.refresh(menu_obj)
+            else:
+                # Self-healing: if parent_id is 0 and system_cat exists, nest it correctly
+                is_changed = False
+                if menu_obj.parent_id == 0 and p_id != 0:
+                    menu_obj.parent_id = p_id
+                    menu_obj.path = f"system/{item['path']}"
+                    menu_obj.component = f"system/{item['path']}/index.vue"
+                    is_changed = True
+                if menu_obj.icon != item.get("icon", "#"):
+                    menu_obj.icon = item.get("icon", "#")
+                    is_changed = True
+                if is_changed:
+                    db.add(menu_obj)
+                    await db.commit()
+                    await db.refresh(menu_obj)
             menus_by_name[item["name"]] = menu_obj
 
-        # 2. 确保各菜单下的按钮/接口权限存在
+        # 3. 确保各菜单下的按钮/接口权限存在
         button_definitions = {
             "用户管理": [
                 {"name": "用户查询", "perms": "system:user:query"},
@@ -102,6 +133,8 @@ async def seed_default_users(db: AsyncSession) -> None:
         }
 
         for parent_name, buttons in button_definitions.items():
+            if parent_name not in menus_by_name:
+                continue
             parent_menu = menus_by_name[parent_name]
             for btn in buttons:
                 res = await db.execute(
@@ -125,7 +158,7 @@ async def seed_default_users(db: AsyncSession) -> None:
         res_all_menus = await db.execute(select(Menu))
         all_menus = res_all_menus.scalars().all()
 
-        # 3. 种子初始化角色，并建立角色-菜单关联
+        # 4. 种子初始化角色，并建立角色-菜单关联
         res_roles = await db.execute(select(Role))
         all_roles = res_roles.scalars().all()
         admin_role = None
@@ -138,9 +171,9 @@ async def seed_default_users(db: AsyncSession) -> None:
             # 管理员角色关联全部菜单/按钮权限
             admin_role.menus = all_menus
             
-            # 编辑者角色关联“用户管理”菜单权限及用户查询权限
-            user_mgmt_menu = [m for m in all_menus if m.perms in ["system:user:list", "system:user:query"]]
-            editor_role.menus = user_mgmt_menu
+            # 编辑者角色关联账号、菜单和通知管理
+            editor_menus = [m for m in all_menus if m.path in ["system/account", "system/menu", "system/notification", "system"] or m.perms in ["system:menu:query", "system:notification:list"]]
+            editor_role.menus = editor_menus
                 
             db.add(admin_role)
             db.add(editor_role)
@@ -153,6 +186,13 @@ async def seed_default_users(db: AsyncSession) -> None:
             # 确保管理员拥有所有最新菜单/按钮的关联
             admin_role.menus = all_menus
             db.add(admin_role)
+            
+            editor_role = [r for r in all_roles if r.role_key == "editor"]
+            if editor_role:
+                # 确保编辑者关联最新的账号、菜单和通知管理
+                editor_menus = [m for m in all_menus if m.path in ["system/account", "system/menu", "system/notification", "system"] or m.perms in ["system:menu:query", "system:notification:list"]]
+                editor_role[0].menus = editor_menus
+                db.add(editor_role[0])
             await db.commit()
 
         # 4. 种子初始化系统默认用户，并绑定角色
