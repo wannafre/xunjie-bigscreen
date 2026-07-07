@@ -97,3 +97,17 @@ export function listToTree<T = any>(
   
   return result
 }
+
+/**
+ * Resolves full resource URL.
+ * If path is absolute (starts with http/https), returns it as-is.
+ * Else, prepends the environment-configured prefix.
+ */
+export function resolveImageUrl(path: string | null | undefined): string {
+  if (!path) return ''
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+    return path
+  }
+  const prefix = import.meta.env.VITE_APP_RESOURCE_PREFIX || ''
+  return `${prefix.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
+}

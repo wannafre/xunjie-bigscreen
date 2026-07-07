@@ -25,3 +25,6 @@ dist-ssr
 
 # local
 package-lock.json
+
+
+app/uploads/

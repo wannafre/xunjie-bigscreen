@@ -58,6 +58,7 @@ async def seed_default_users(db: AsyncSession) -> None:
             {"name": "菜单管理", "perms": "system:menu:list", "path": "menu", "order": 15, "icon": "Setting"},
             {"name": "字典管理", "perms": "system:dict:list", "path": "dictionary", "order": 16, "icon": "Notebook"},
             {"name": "通知管理", "perms": "system:notification:list", "path": "notification", "order": 17, "icon": "Bell"},
+            {"name": "素材管理", "perms": "system:material:list", "path": "material", "order": 18, "icon": "Apps"},
         ]
         
         menus_by_name = {}
@@ -129,6 +130,12 @@ async def seed_default_users(db: AsyncSession) -> None:
                 {"name": "通知新增", "perms": "system:notification:add"},
                 {"name": "通知修改", "perms": "system:notification:edit"},
                 {"name": "通知删除", "perms": "system:notification:remove"},
+            ],
+            "素材管理": [
+                {"name": "素材查询", "perms": "system:material:query"},
+                {"name": "素材新增", "perms": "system:material:add"},
+                {"name": "素材修改", "perms": "system:material:edit"},
+                {"name": "素材删除", "perms": "system:material:remove"},
             ],
         }
 
@@ -300,7 +307,122 @@ async def seed_default_users(db: AsyncSession) -> None:
                 
                 logger.info("Default notifications and user read states seeded successfully.")
             
+            # 7. 种子初始化系统配置与大屏模板数据
+            from app.models.config import SystemConfig
+            from app.models.material import Material
+            
+            storage_configs = {
+                "sys.storage.type": ("文件存储类型", "local", "文件存储类型：local本地存储，oss对象存储"),
+                "sys.storage.oss.endpoint": ("OSS端点", "", "对象存储端点，如 http://localhost:9000 或 https://oss-cn-hangzhou.aliyuncs.com"),
+                "sys.storage.oss.bucket": ("OSS存储桶", "", "对象存储的Bucket名称"),
+                "sys.storage.oss.access_key": ("OSS Access Key", "", "对象存储 Access Key ID"),
+                "sys.storage.oss.secret_key": ("OSS Secret Key", "", "对象存储 Secret Access Key"),
+                "sys.storage.oss.region": ("OSS区域", "", "对象存储所在的物理区域"),
+                "sys.storage.oss.domain": ("OSS自定义域名", "", "自定义CDN或静态资源访问域名")
+            }
+            
+            for key, (name, val, remark) in storage_configs.items():
+                res_cfg = await db.execute(select(SystemConfig).filter(SystemConfig.config_key == key))
+                cfg_obj = res_cfg.scalars().first()
+                if not cfg_obj:
+                    cfg_obj = SystemConfig(
+                        config_name=name,
+                        config_key=key,
+                        config_value=val,
+                        is_system="1",
+                        remark=remark
+                    )
+                    db.add(cfg_obj)
+            await db.commit()
+            logger.info("Default system configs seeded successfully.")
+            
+            # Seed some official materials
+            res_mats = await db.execute(select(Material).filter(Material.is_official == True))
+            mats = res_mats.scalars().all()
+            if not mats:
+                official_mats = [
+                    Material(
+                        name="基础折线图",
+                        category="echarts",
+                        subcategory="line",
+                        thumbnail="",
+                        is_official=True,
+                        config_data={
+                            "title": {"text": "基础折线图", "textStyle": {"color": "#fff"}},
+                            "tooltip": {"trigger": "axis"},
+                            "xAxis": {"type": "category", "data": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], "axisLabel": {"color": "#fff"}},
+                            "yAxis": {"type": "value", "axisLabel": {"color": "#fff"}},
+                            "series": [{"data": [150, 230, 224, 218, 135, 147, 260], "type": "line", "smooth": True, "itemStyle": {"color": "#3b82f6"}}]
+                        },
+                        create_by="admin"
+                    ),
+                    Material(
+                        name="基础柱状图",
+                        category="echarts",
+                        subcategory="bar",
+                        thumbnail="",
+                        is_official=True,
+                        config_data={
+                            "title": {"text": "基础柱状图", "textStyle": {"color": "#fff"}},
+                            "tooltip": {"trigger": "axis"},
+                            "xAxis": {"type": "category", "data": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], "axisLabel": {"color": "#fff"}},
+                            "yAxis": {"type": "value", "axisLabel": {"color": "#fff"}},
+                            "series": [{"data": [120, 200, 150, 80, 70, 110, 130], "type": "bar", "itemStyle": {"color": "#10b981"}}]
+                        },
+                        create_by="admin"
+                    ),
+                    Material(
+                        name="基础饼图",
+                        category="echarts",
+                        subcategory="pie",
+                        thumbnail="",
+                        is_official=True,
+                        config_data={
+                            "title": {"text": "访问来源", "left": "center", "textStyle": {"color": "#fff"}},
+                            "tooltip": {"trigger": "item"},
+                            "legend": {"orient": "vertical", "left": "left", "textStyle": {"color": "#fff"}},
+                            "series": [
+                                {
+                                    "name": "Access From",
+                                    "type": "pie",
+                                    "radius": "50%",
+                                    "data": [
+                                        {"value": 1048, "name": "Search Engine"},
+                                        {"value": 735, "name": "Direct"},
+                                        {"value": 580, "name": "Email"},
+                                        {"value": 484, "name": "Union Ads"},
+                                        {"value": 300, "name": "Video Ads"}
+                                    ],
+                                    "emphasis": {
+                                        "itemStyle": {
+                                            "shadowBlur": 10,
+                                            "shadowOffsetX": 0,
+                                            "shadowColor": "rgba(0, 0, 0, 0.5)"
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        create_by="admin"
+                    ),
+                    Material(
+                        name="深邃夜空背景",
+                        category="background",
+                        subcategory="image",
+                        thumbnail="",
+                        is_official=True,
+                        config_data={
+                            "color": "#0b132b",
+                            "image": ""
+                        },
+                        create_by="admin"
+                    )
+                ]
+                db.add_all(official_mats)
+                await db.commit()
+                logger.info("Default official materials seeded successfully.")
+            
     except Exception as e:
-        logger.error(f"Error seeding default users, roles, and menus: {e}")
+        logger.error(f"Error seeding default users, roles, configs, and materials: {e}")
 
 
