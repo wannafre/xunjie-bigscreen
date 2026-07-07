@@ -133,11 +133,13 @@ const editModalType = ref<'create' | 'update'>('create')
 const editRecord = ref<any>(null)
 
 // Preview variables
+const previewGeoJsonText = ref('')
 const previewVisible = ref(false)
 const previewItem = ref<any>(null)
 const previewChartRef = ref<HTMLDivElement | null>(null)
 const previewChartError = ref('')
 let previewChartInstance: any = null
+let previewRegisteredMaps: string[] = [] // tracks map names registered for current preview
 
 // Image viewer variables
 const imagePreviewVisible = ref(false)
@@ -390,8 +392,9 @@ async function initPreviewChart() {
     if (previewItem.value.category === 'geojson') {
       const geoJsonData = await loadGeoJsonData(previewItem.value.config_data)
       if (geoJsonData) {
-        const mapName = 'preview_map_' + previewItem.value.id
+        const mapName = 'preview_geojson_' + previewItem.value.id + '_' + Date.now()
         echarts.registerMap(mapName, geoJsonData)
+        previewRegisteredMaps.push(mapName)
         opt = {
           backgroundColor: 'transparent',
           tooltip: {
@@ -441,10 +444,13 @@ async function initPreviewChart() {
             const geoJsonData = await loadGeoJsonData(geoJsonMaterial.config_data)
             if (geoJsonData) {
               if (ids.length === 1) {
-                const mapName = findMapName(opt) || 'custom_map'
+                const mapName = findMapName(opt) || 'custom_map_' + Date.now()
                 echarts.registerMap(mapName, geoJsonData)
+                previewRegisteredMaps.push(mapName)
               }
-              echarts.registerMap(`map_${id}`, geoJsonData)
+              const idMapName = `map_${id}`
+              echarts.registerMap(idMapName, geoJsonData)
+              previewRegisteredMaps.push(idMapName)
               if (geoJsonMaterial.name) {
                 echarts.registerMap(geoJsonMaterial.name, geoJsonData)
               }
@@ -479,6 +485,12 @@ function destroyPreviewChart() {
     previewChartInstance.dispose()
     previewChartInstance = null
   }
+  // Clear all registered maps from this preview to avoid global cache pollution
+  const emptyGeoJson = { type: 'FeatureCollection', features: [] } as any
+  for (const name of previewRegisteredMaps) {
+    try { echarts.registerMap(name, emptyGeoJson) } catch (_) {}
+  }
+  previewRegisteredMaps = []
 }
 
 // Click to view full image zoom

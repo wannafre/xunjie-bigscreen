@@ -15,7 +15,7 @@
           <a-grid :cols="2" :col-gap="16">
             <a-grid-item>
               <a-form-item field="name" label="素材名称" required>
-                <a-input v-model="materialForm.name" placeholder="请输入素材名称" maxLength="100" />
+                <a-input v-model="materialForm.name" placeholder="请输入素材名称" :maxLength="100" />
               </a-form-item>
             </a-grid-item>
             <a-grid-item>
@@ -279,6 +279,7 @@ const formRules = {
 const editChartRef = ref<HTMLDivElement | null>(null)
 const editChartError = ref(false)
 let editChartInstance: any = null
+let editRegisteredMaps: string[] = [] // track registered map names for this edit session
 
 // Background and Image form fields options mapping
 const bgOptions = reactive({
@@ -606,8 +607,9 @@ async function updateEditPreview() {
         return
       }
       const geoJsonData = JSON.parse(configJsonStr.value)
-      const mapName = 'preview_map'
+      const mapName = 'edit_preview_map_' + Date.now()
       echarts.registerMap(mapName, geoJsonData)
+      editRegisteredMaps.push(mapName)
       parsed = {
         backgroundColor: 'transparent',
         tooltip: {
@@ -672,14 +674,19 @@ async function updateEditPreview() {
               if (ids.length === 1) {
                 const mapName = findMapName(parsed) || 'custom_map'
                 echarts.registerMap(mapName, geoJsonData)
+                editRegisteredMaps.push(mapName)
               }
-              echarts.registerMap(`map_${id}`, geoJsonData)
+              const idMapName = `map_${id}`
+              echarts.registerMap(idMapName, geoJsonData)
+              editRegisteredMaps.push(idMapName)
               if (geoJsonMaterial.name) {
                 echarts.registerMap(geoJsonMaterial.name, geoJsonData)
+                editRegisteredMaps.push(geoJsonMaterial.name)
               }
               if (geoJsonMaterial.config_data.filename) {
                 const baseName = geoJsonMaterial.config_data.filename.replace(/\.json$/i, '')
                 echarts.registerMap(baseName, geoJsonData)
+                editRegisteredMaps.push(baseName)
               }
             }
           }
@@ -736,6 +743,12 @@ function handleEditModalClose() {
     editChartInstance.dispose()
     editChartInstance = null
   }
+  // Clear all registered maps to avoid stale global ECharts cache
+  const emptyGeoJson = { type: 'FeatureCollection', features: [] } as any
+  for (const name of editRegisteredMaps) {
+    try { echarts.registerMap(name, emptyGeoJson) } catch (_) {}
+  }
+  editRegisteredMaps = []
   editChartError.value = false
 }
 

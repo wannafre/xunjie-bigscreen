@@ -119,38 +119,37 @@ async function generateDynamicRoutes() {
   }
 }
 
-router.beforeEach(async (to, _from, next) => {
+router.beforeEach(async (to, _from) => {
   const userStore = useUserStore()
   const token = userStore.token
 
   if (token) {
     if (to.path === '/login') {
-      next({ path: '/' })
+      return { path: '/' }
     } else {
       // Check if we have user info
       if (userStore.roles.length === 0) {
         try {
           await userStore.getInfo()
           await generateDynamicRoutes()
-          next({ ...to, replace: true })
+          return { ...to, replace: true }
         } catch (error) {
           userStore.clearToken()
-          next(`/login?redirect=${to.path}`)
+          return `/login?redirect=${to.path}`
         }
       } else {
         if (!isRoutesGenerated) {
           await generateDynamicRoutes()
-          next({ ...to, replace: true })
-        } else {
-          next()
+          return { ...to, replace: true }
         }
+        // return undefined to allow navigation
       }
     }
   } else {
     if (whiteList.indexOf(to.path) !== -1) {
-      next()
+      // return undefined to allow navigation
     } else {
-      next(`/login?redirect=${to.path}`)
+      return `/login?redirect=${to.path}`
     }
   }
 })
