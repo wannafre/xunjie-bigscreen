@@ -24,25 +24,25 @@ a {
 }
 
 :root {
-  --xj-page-bg: #edf2f8;
-  --xj-surface: rgba(248, 251, 255, 0.96);
-  --xj-surface-soft: rgba(241, 246, 255, 0.92);
-  --xj-surface-strong: #f8fbff;
-  --xj-border: #d7e3f1;
-  --xj-border-strong: #c8d7ea;
-  --xj-text: #172033;
-  --xj-text-muted: #64748b;
-  --xj-text-soft: #8a9ab0;
-  --xj-primary: #2563eb;
-  --xj-primary-soft: #e7f0ff;
-  --xj-success: #16a34a;
+  --xj-page-bg: #f8fafc;
+  --xj-surface: rgba(255, 255, 255, 0.96);
+  --xj-surface-soft: rgba(248, 250, 252, 0.92);
+  --xj-surface-strong: #ffffff;
+  --xj-border: #e2e8f0;
+  --xj-border-strong: #cbd5e1;
+  --xj-text: #0f172a;
+  --xj-text-muted: #475569;
+  --xj-text-soft: #94a3b8;
+  --xj-primary: #4f46e5;
+  --xj-primary-soft: #e0e7ff;
+  --xj-success: #10b981;
   --xj-warning: #f59e0b;
   --xj-danger: #ef4444;
-  --xj-radius-lg: 20px;
-  --xj-radius-md: 16px;
+  --xj-radius-lg: 24px;
+  --xj-radius-md: 18px;
   --xj-radius-sm: 12px;
-  --xj-shadow-card: 0 14px 36px rgba(15, 23, 42, 0.08);
-  --xj-shadow-soft: 0 8px 22px rgba(15, 23, 42, 0.06);
+  --xj-shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  --xj-shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -2px rgba(0, 0, 0, 0.02);
 }
 
 /* ===== All business sub-pages ===== */
@@ -68,7 +68,7 @@ a {
 .app-main :where(.box-card, .profile-card, .tabs-card, .info-card, .shortcut-card, .welcome-card) {
   border-radius: var(--xj-radius-lg) !important;
   border: 1px solid var(--xj-border) !important;
-  background: linear-gradient(180deg, rgba(248, 251, 255, 0.98), rgba(241, 246, 255, 0.94)) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96)) !important;
   box-shadow: var(--xj-shadow-card) !important;
   overflow: hidden !important;
 }
@@ -81,7 +81,7 @@ a {
   min-height: 70px !important;
   padding: 18px 22px !important;
   border-bottom: 1px solid var(--xj-border) !important;
-  background: linear-gradient(90deg, rgba(231, 240, 255, 0.86), rgba(248, 251, 255, 0.4)) !important;
+  background: linear-gradient(90deg, rgba(224, 231, 255, 0.72), rgba(255, 255, 255, 0.3)) !important;
 }
 
 .app-main .arco-card-body {
@@ -113,8 +113,8 @@ a {
   width: 4px !important;
   height: 18px !important;
   border-radius: 99px !important;
-  background: linear-gradient(180deg, #2563eb, #38bdf8) !important;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10) !important;
+  background: linear-gradient(180deg, #4f46e5, #818cf8) !important;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.10) !important;
 }
 
 .app-main .header-actions {
@@ -160,15 +160,15 @@ a {
 }
 
 .app-main :where(.arco-btn-primary) {
-  background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%) !important;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
   border: 0 !important;
-  box-shadow: 0 9px 18px rgba(37, 99, 235, 0.20) !important;
+  box-shadow: 0 9px 18px rgba(79, 70, 229, 0.18) !important;
 }
 
 .app-main :where(.arco-btn-outline, .arco-btn-secondary) {
   background: rgba(255, 255, 255, 0.62) !important;
   border-color: var(--xj-border-strong) !important;
-  color: #25508f !important;
+  color: #312e81 !important;
 }
 
 .app-main :where(.arco-table-container, .arco-table-content, .arco-table-body, .arco-table) {
@@ -184,8 +184,8 @@ a {
 
 .app-main .arco-table-th {
   height: 48px !important;
-  background: #eef5ff !important;
-  color: #38506f !important;
+  background: #e0e7ff !important;
+  color: #312e81 !important;
   font-weight: 760 !important;
   border-bottom-color: var(--xj-border) !important;
 }
@@ -194,11 +194,11 @@ a {
   min-height: 52px !important;
   color: #334155 !important;
   border-bottom-color: #e4edf8 !important;
-  background: rgba(248, 251, 255, 0.72) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
 }
 
 .app-main .arco-table-tr:hover .arco-table-td {
-  background: #eef6ff !important;
+  background: rgba(224, 231, 255, 0.22) !important;
 }
 
 .app-main .arco-table-cell {
@@ -235,10 +235,10 @@ a {
 }
 
 .app-main .welcome-card {
-  border: 1px solid rgba(37, 99, 235, 0.18) !important;
+  border: 1px solid rgba(79, 70, 229, 0.15) !important;
   background:
-    radial-gradient(circle at 92% 18%, rgba(14, 165, 233, 0.18), transparent 28%),
-    linear-gradient(135deg, #f8fbff 0%, #eaf2ff 52%, #f4f8ff 100%) !important;
+    radial-gradient(circle at 92% 18%, rgba(99, 102, 241, 0.12), transparent 28%),
+    linear-gradient(135deg, #ffffff 0%, #f5f3ff 52%, #ffffff 100%) !important;
 }
 
 .app-main .welcome-box {
@@ -250,7 +250,7 @@ a {
 
 .app-main .welcome-avatar {
   border: 4px solid rgba(255, 255, 255, 0.88) !important;
-  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.22) !important;
+  box-shadow: 0 12px 28px rgba(79, 70, 229, 0.18) !important;
 }
 
 .app-main .welcome-text h3 {
@@ -276,21 +276,10 @@ a {
   padding: 22px !important;
   border-radius: 20px !important;
   border: 1px solid var(--xj-border) !important;
-  background: linear-gradient(180deg, rgba(248, 251, 255, .98), rgba(241, 246, 255, .95)) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(248, 250, 252, .96)) !important;
   box-shadow: var(--xj-shadow-card) !important;
   overflow: hidden !important;
   transition: transform .2s ease, box-shadow .2s ease !important;
-}
-
-.app-main .stat-card::after {
-  content: '' !important;
-  position: absolute !important;
-  right: -30px !important;
-  top: -36px !important;
-  width: 110px !important;
-  height: 110px !important;
-  border-radius: 50% !important;
-  background: rgba(37, 99, 235, 0.07) !important;
 }
 
 .app-main .stat-card:hover {
@@ -314,7 +303,7 @@ a {
   height: 54px !important;
   border-radius: 18px !important;
   background: var(--xj-primary-soft) !important;
-  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08) !important;
+  box-shadow: inset 0 0 0 1px rgba(79, 70, 229, 0.08) !important;
 }
 
 .app-main .project-info {
@@ -335,8 +324,8 @@ a {
 }
 
 .app-main .shortcut-item:hover {
-  background: #e8f1ff !important;
-  border-color: #b9d4ff !important;
+  background: #f5f3ff !important;
+  border-color: #c7d2fe !important;
   color: var(--xj-primary) !important;
   transform: translateX(3px) !important;
 }
@@ -356,7 +345,7 @@ a {
 }
 
 .app-main .notice-list-item:hover {
-  background: #eef6ff !important;
+  background: #f5f3ff !important;
   border-color: var(--xj-border) !important;
   transform: translateY(-1px) !important;
 }
@@ -393,8 +382,8 @@ a {
 
 .app-main .account-container .user-avatar {
   border: 4px solid rgba(255,255,255,.9) !important;
-  background: linear-gradient(135deg, #2563eb, #38bdf8) !important;
-  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.22) !important;
+  background: linear-gradient(135deg, #6366f1, #818cf8) !important;
+  box-shadow: 0 14px 30px rgba(99, 102, 241, 0.18) !important;
 }
 
 .app-main .user-nickname {
@@ -472,8 +461,8 @@ a {
 
 .app-main .dict-list-item:hover,
 .app-main .dict-list-item.active {
-  border-color: #b9d4ff !important;
-  background: #e8f1ff !important;
+  border-color: #c7d2fe !important;
+  background: #e0e7ff !important;
   transform: translateX(2px) !important;
 }
 
@@ -518,8 +507,8 @@ a {
   max-width: 220px !important;
   padding: 4px 8px !important;
   border-radius: 8px !important;
-  background: #eef5ff !important;
-  color: #25508f !important;
+  background: #e0e7ff !important;
+  color: #312e81 !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
@@ -528,16 +517,16 @@ a {
 /* ===== Modal / form polish for subpages ===== */
 .arco-modal .arco-modal-header {
   border-bottom: 1px solid var(--xj-border) !important;
-  background: linear-gradient(90deg, #eef5ff, #f8fbff) !important;
+  background: linear-gradient(90deg, #e0e7ff80, #f8fafc) !important;
 }
 
 .arco-modal .arco-modal-body {
-  background: #f8fbff !important;
+  background: #f8fafc !important;
 }
 
 .arco-modal .arco-modal-footer {
   border-top: 1px solid var(--xj-border) !important;
-  background: #f8fbff !important;
+  background: #f8fafc !important;
 }
 
 .arco-modal .arco-modal-title {
@@ -559,16 +548,18 @@ a {
 .login-container {
   min-height: 100vh !important;
   background:
-    radial-gradient(circle at 82% 12%, rgba(37, 99, 235, 0.18), transparent 30%),
-    radial-gradient(circle at 12% 82%, rgba(14, 165, 233, 0.16), transparent 32%),
-    linear-gradient(135deg, #edf2f8 0%, #f8fbff 100%) !important;
+    radial-gradient(circle at 82% 12%, rgba(99, 102, 241, 0.15), transparent 30%),
+    radial-gradient(circle at 12% 82%, rgba(79, 70, 229, 0.12), transparent 32%),
+    linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
 }
 
 .login-card {
   border-radius: 26px !important;
-  border: 1px solid rgba(203, 213, 225, 0.9) !important;
-  background: rgba(248, 251, 255, 0.88) !important;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  box-shadow: 0 24px 60px rgba(99, 102, 241, 0.12) !important;
 }
 
 .login-card:hover {

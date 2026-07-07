@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <a-layout-header class="header-container">
     <div class="header-left">
       <button class="fold-button" type="button" @click="emit('toggle-collapse')">
@@ -72,8 +72,8 @@ const emit = defineEmits<{
 .header-container {
   height: 68px !important;
   margin: 16px 22px 0;
-  background: #f8fbff !important;
-  border: 1px solid #dbe4f0;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0;
   border-radius: 18px;
   display: flex;
   align-items: center;
@@ -81,7 +81,7 @@ const emit = defineEmits<{
   padding: 0 20px !important;
   line-height: normal;
   flex-shrink: 0;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
 }
 
 .header-left {
@@ -94,10 +94,10 @@ const emit = defineEmits<{
 .fold-button {
   width: 42px;
   height: 42px;
-  border: 1px solid #dbeafe;
+  border: 1px solid #e0e7ff;
   border-radius: 14px;
-  background: #eef6ff;
-  color: #2563eb;
+  background: #f5f3ff;
+  color: #4f46e5;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -107,8 +107,8 @@ const emit = defineEmits<{
 }
 
 .fold-button:hover {
-  background: #dbeafe;
-  border-color: #bfdbfe;
+  background: #e0e7ff;
+  border-color: #c7d2fe;
 }
 
 .header-title-group {

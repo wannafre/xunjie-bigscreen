@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <a-dropdown trigger="click" @select="handleSelect">
     <div class="header-avatar-wrap">
       <a-avatar
@@ -79,10 +79,10 @@ function handleSelect(value: string | number | Record<string, any> | undefined) 
 }
 
 .user-avatar {
-  background: linear-gradient(135deg, #2563eb, #38bdf8) !important;
+  background: linear-gradient(135deg, #6366f1, #818cf8) !important;
   color: #ffffff;
   font-weight: 700;
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.24);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.22);
 }
 
 .header-avatar-wrap :deep(.arco-avatar-image) {

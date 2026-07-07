@@ -76,7 +76,7 @@ function handleClick(key: string) {
 
 <style scoped>
 .sidebar-container {
-  background: linear-gradient(180deg, #f8fbff 0%, #f2f6fc 46%, #eef4fb 100%) !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 46%, #f1f5f9 100%) !important;
   border-right: 1px solid #dbe4f0;
   box-shadow: 10px 0 30px rgba(15, 23, 42, 0.06);
   transition: all 0.24s ease;
@@ -112,7 +112,7 @@ function handleClick(key: string) {
 .sidebar-logo-icon {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   border-radius: 13px;
   display: flex;
   align-items: center;
@@ -120,7 +120,7 @@ function handleClick(key: string) {
   color: #ffffff;
   font-size: 18px;
   flex-shrink: 0;
-  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.22);
+  box-shadow: 0 10px 22px rgba(99, 102, 241, 0.22);
 }
 
 .sidebar-brand {
@@ -160,8 +160,8 @@ function handleClick(key: string) {
   padding: 11px 14px;
   color: #475569;
   font-size: 12px;
-  border: 1px solid #dbeafe;
-  background: #eef6ff;
+  border: 1px solid #e0e7ff;
+  background: #f5f3ff;
   border-radius: 14px;
   flex-shrink: 0;
   display: flex;
@@ -174,8 +174,8 @@ function handleClick(key: string) {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #16a34a;
-  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.12);
+  background: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
 }
 
 :deep(.arco-menu) {
@@ -203,27 +203,27 @@ function handleClick(key: string) {
 :deep(.arco-menu-light .arco-menu-item:hover),
 :deep(.arco-menu-light .arco-menu-inline-header:hover),
 :deep(.arco-menu-light .arco-menu-pop-header:hover) {
-  background: #eaf3ff !important;
-  color: #1d4ed8 !important;
+  background: #f5f3ff !important;
+  color: #4f46e5 !important;
 }
 
 :deep(.arco-menu-light .arco-menu-item.arco-menu-selected) {
-  background: #dbeafe !important;
-  color: #1d4ed8 !important;
+  background: #e0e7ff !important;
+  color: #4f46e5 !important;
   font-weight: 650 !important;
 }
 
 :deep(.arco-menu-light .arco-menu-inline-header.arco-menu-selected),
 :deep(.arco-menu-light .arco-menu-pop-header.arco-menu-selected) {
-  color: #1d4ed8 !important;
+  color: #4f46e5 !important;
   font-weight: 600 !important;
-  background: #eaf3ff !important;
+  background: #f5f3ff !important;
 }
 
 :deep(.arco-menu-light .arco-menu-item.arco-menu-selected .arco-icon),
 :deep(.arco-menu-light .arco-menu-inline-header.arco-menu-selected .arco-icon),
 :deep(.arco-menu-light .arco-menu-pop-header.arco-menu-selected .arco-icon) {
-  color: #2563eb !important;
+  color: #4f46e5 !important;
 }
 
 :deep(.arco-menu-light .arco-menu-icon-suffix .arco-icon) {
@@ -255,7 +255,7 @@ function handleClick(key: string) {
 :deep(.arco-menu-light .arco-menu-item:hover .arco-icon),
 :deep(.arco-menu-light .arco-menu-inline-header:hover .arco-icon),
 :deep(.arco-menu-light .arco-menu-pop-header:hover .arco-icon) {
-  color: #2563eb;
+  color: #4f46e5;
 }
 
 :deep(.arco-menu-collapse .arco-menu-item),

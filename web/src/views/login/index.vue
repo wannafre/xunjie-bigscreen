@@ -299,7 +299,9 @@ onUnmounted(() => {
   align-items: center;
   height: 100vh;
   width: 100vw;
-  background: radial-gradient(circle at 10% 20%, rgba(216, 241, 250, 0.4) 0%, rgba(244, 249, 252, 1) 90.1%);
+  background: radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+              radial-gradient(circle at 20% 80%, rgba(79, 70, 229, 0.12) 0%, transparent 50%),
+              #f8fafc;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
@@ -317,7 +319,7 @@ onUnmounted(() => {
 .circle {
   position: absolute;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(24, 144, 255, 0.15) 0%, rgba(24, 144, 255, 0) 70%);
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0) 70%);
   filter: blur(40px);
 }
 
@@ -346,14 +348,14 @@ onUnmounted(() => {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 24px;
-  box-shadow: 0 20px 40px rgba(24, 144, 255, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 20px 40px rgba(99, 102, 241, 0.06), 0 1px 3px rgba(0, 0, 0, 0.02);
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .login-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 24px 48px rgba(24, 144, 255, 0.12);
-  border-color: rgba(24, 144, 255, 0.25);
+  box-shadow: 0 24px 48px rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.25);
 }
 
 .brand {
@@ -367,11 +369,11 @@ onUnmounted(() => {
   align-items: center;
   width: 56px;
   height: 56px;
-  background-color: #1890ff;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   color: white;
   border-radius: 16px;
   margin-bottom: 16px;
-  box-shadow: 0 8px 16px rgba(24, 144, 255, 0.25);
+  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.25);
 }
 
 .brand-title {
@@ -407,8 +409,8 @@ onUnmounted(() => {
 
 :deep(.el-input__wrapper.is-focus) {
   background-color: #ffffff !important;
-  border-color: #1890ff !important;
-  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.15) !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
 }
 
 :deep(.el-input__inner) {
@@ -426,20 +428,20 @@ onUnmounted(() => {
 .submit-btn {
   width: 100%;
   height: 48px;
-  background-color: #1890ff;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   border: none;
   border-radius: 12px;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 2px;
-  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.25);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.22);
   transition: all 0.2s ease;
 }
 
 .submit-btn:hover {
-  background-color: #40a9ff;
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
   transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(24, 144, 255, 0.35);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
 }
 
 .submit-btn:active {
@@ -454,8 +456,8 @@ onUnmounted(() => {
 }
 
 .badge {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: #e0e7ff;
+  color: #4f46e5;
   padding: 2px 6px;
   border-radius: 4px;
   font-family: monospace;
@@ -560,7 +562,7 @@ onUnmounted(() => {
   left: 0;
   top: 0;
   height: 100%;
-  background-color: rgba(24, 144, 255, 0.15);
+  background-color: rgba(99, 102, 241, 0.15);
   border-radius: 20px 0 0 20px;
 }
 
@@ -578,15 +580,15 @@ onUnmounted(() => {
   align-items: center;
   cursor: grab;
   z-index: 5;
-  color: #1890ff;
+  color: #6366f1;
   font-size: 16px;
   transition: background-color 0.1s;
 }
 
 .slider-handle:hover {
-  background-color: #1890ff;
+  background-color: #6366f1;
   color: #ffffff;
-  border-color: #1890ff;
+  border-color: #6366f1;
 }
 
 .slider-handle:active {

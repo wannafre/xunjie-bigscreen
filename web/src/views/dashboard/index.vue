@@ -85,32 +85,32 @@ const stats = ref([
     value: '12,543',
     icon: IconDesktop,
     trend: '12',
-    color: '#165DFF',
-    bgColor: '#E8F1FF'
+    color: '#4f46e5',
+    bgColor: '#e0e7ff'
   },
   {
     title: '在线设备',
     value: '1,240',
     icon: IconUser,
     trend: '5',
-    color: '#00B42A',
-    bgColor: '#E8FFE6'
+    color: '#059669',
+    bgColor: '#d1fae5'
   },
   {
     title: '待处理报警',
     value: '18',
     icon: IconFile,
     trend: '-8',
-    color: '#F53F3F',
-    bgColor: '#FFE8E8'
+    color: '#dc2626',
+    bgColor: '#fee2e2'
   },
   {
     title: '待更新软件',
     value: '3',
     icon: IconApps,
     trend: '0',
-    color: '#FF7D00',
-    bgColor: '#FFF3E8'
+    color: '#d97706',
+    bgColor: '#fef3c7'
   }
 ])
 </script>
