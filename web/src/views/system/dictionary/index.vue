@@ -33,6 +33,16 @@
                   </div>
                 </div>
             </div>
+            <div class="dict-type-pagination" v-if="typePagination.total > typePagination.pageSize">
+              <a-pagination 
+                :total="typePagination.total" 
+                :current="typePagination.current" 
+                :page-size="typePagination.pageSize" 
+                size="mini" 
+                :show-total="true"
+                @change="onTypePageChange" 
+              />
+            </div>
           </div>
         </a-col>
 
@@ -47,7 +57,8 @@
               </a-button>
             </div>
             
-            <a-table :loading="dataLoading" :data="dictDataList" :columns="dataColumns" :pagination="false" :bordered="false">
+            <a-table :loading="dataLoading" :data="dictDataList" :columns="dataColumns" :pagination="dataPagination"
+              @page-change="onDataPageChange" :bordered="false" :scroll="{ y: 'calc(100vh - 430px)' }">
                 <template #status="{ record }">
                   <a-tag :color="record.status === '0' ? 'green' : 'red'">
                     {{ record.status === '0' ? '正常' : '停用' }}
@@ -136,6 +147,19 @@ const selectedDictType = ref<string>('')
 const dictDataList = ref<any[]>([])
 const dataLoading = ref(false)
 
+const typePagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0
+})
+
+const dataPagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+  showTotal: true
+})
+
 const typeDialogVisible = ref(false)
 const typeDialogType = ref<'create' | 'update'>('create')
 const typeFormRef = ref()
@@ -183,18 +207,43 @@ const dataRules = {
 
 async function loadDictTypes() {
   try {
-    const res: any = await getDictTypeList()
-    dictTypes.value = res || []
-    if (res && res.length > 0 && !selectedDictType.value) {
-      selectDictType(res[0].dict_type)
+    const res: any = await getDictTypeList({
+      page: typePagination.current,
+      page_size: typePagination.pageSize
+    })
+    const items = res.items || []
+    const total = res.total || 0
+    
+    if (typePagination.current > 1 && items.length === 0 && total > 0) {
+      typePagination.current = Math.ceil(total / typePagination.pageSize)
+      await loadDictTypes()
+      return
+    }
+    
+    dictTypes.value = items
+    typePagination.total = total
+    if (dictTypes.value.length > 0) {
+      if (!selectedDictType.value || !dictTypes.value.some(d => d.dict_type === selectedDictType.value)) {
+        selectDictType(dictTypes.value[0].dict_type)
+      }
+    } else {
+      selectedDictType.value = ''
+      dictDataList.value = []
+      dataPagination.total = 0
     }
   } catch (err) {
     console.error('加载字典类型失败', err)
   }
 }
 
+function onTypePageChange(current: number) {
+  typePagination.current = current
+  loadDictTypes()
+}
+
 async function selectDictType(type: string) {
   selectedDictType.value = type
+  dataPagination.current = 1
   loadDictData()
 }
 
@@ -202,13 +251,32 @@ async function loadDictData() {
   if (!selectedDictType.value) return
   dataLoading.value = true
   try {
-    const res: any = await getDictDataList(selectedDictType.value)
-    dictDataList.value = res || []
+    const res: any = await getDictDataList({
+      dict_type: selectedDictType.value,
+      page: dataPagination.current,
+      page_size: dataPagination.pageSize
+    })
+    const items = res.items || []
+    const total = res.total || 0
+    
+    if (dataPagination.current > 1 && items.length === 0 && total > 0) {
+      dataPagination.current = Math.ceil(total / dataPagination.pageSize)
+      await loadDictData()
+      return
+    }
+    
+    dictDataList.value = items
+    dataPagination.total = total
   } catch (err) {
     console.error('加载字典数据失败', err)
   } finally {
     dataLoading.value = false
   }
+}
+
+function onDataPageChange(current: number) {
+  dataPagination.current = current
+  loadDictData()
 }
 
 // Dict Type Forms
@@ -357,26 +425,37 @@ onMounted(() => {
 <style scoped>
 .dict-container {
   height: 100%;
+  overflow-x: hidden;
 }
 .box-card {
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   border: 1px solid #E5E6EB;
   background: #FFFFFF;
+  overflow: hidden;
+}
+:deep(.arco-table-body) {
+  overflow-x: hidden !important;
 }
 .dict-left-panel {
   border: 1px solid #E5E6EB;
   border-radius: 4px;
   padding: 16px;
   background: #FFFFFF;
-  min-height: 500px;
+  height: calc(100vh - 270px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 .dict-right-panel {
   border: 1px solid #E5E6EB;
   border-radius: 4px;
   padding: 16px;
   background: #FFFFFF;
-  min-height: 500px;
+  height: calc(100vh - 270px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 .dict-panel-header {
   display: flex;
@@ -385,6 +464,7 @@ onMounted(() => {
   margin-bottom: 16px;
   border-bottom: 1px solid #F2F3F5;
   padding-bottom: 8px;
+  flex-shrink: 0;
 }
 .dict-panel-title {
   font-weight: 600;
@@ -402,6 +482,11 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-bottom: 8px;
+  padding-right: 6px;
 }
 .dict-list-item {
   display: flex;
@@ -460,5 +545,12 @@ onMounted(() => {
 }
 .full-width {
   width: 100%;
+}
+.dict-type-pagination {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #F2F3F5;
+  display: flex;
+  justify-content: center;
 }
 </style>

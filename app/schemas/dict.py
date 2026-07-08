@@ -60,3 +60,11 @@ class DictDataOut(DictDataBase):
 
     class Config:
         from_attributes = True
+
+from app.schemas.common import PageResult
+
+class DictTypePaginationOut(PageResult[DictTypeOut]):
+    pass
+
+class DictDataPaginationOut(PageResult[DictDataOut]):
+    pass

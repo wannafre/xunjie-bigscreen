@@ -30,7 +30,7 @@
         class="sidebar-menu"
         @menu-item-click="handleClick"
       >
-        <a-menu-item key="/dashboard" class="app-menu-item">
+        <a-menu-item key="/manager/dashboard" class="app-menu-item">
           <template #icon>
             <IconHome />
           </template>

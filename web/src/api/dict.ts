@@ -1,8 +1,8 @@
 import request from '../utils/request'
 
 // Dict Type APIs
-export function getDictTypeList() {
-  return request.get('/dict/type')
+export function getDictTypeList(params?: any) {
+  return request.get('/dict/type', { params })
 }
 
 export function getDictType(id: number | string) {
@@ -22,8 +22,8 @@ export function deleteDictType(id: number | string) {
 }
 
 // Dict Data APIs
-export function getDictDataList(dictType: string) {
-  return request.get('/dict/data', { params: { dict_type: dictType } })
+export function getDictDataList(params: any) {
+  return request.get('/dict/data', { params })
 }
 
 export function getDictData(dictCode: number | string) {

@@ -39,3 +39,8 @@ class NotificationReadUser(BaseModel):
     username: str = Field(..., description="登录账号")
     nickname: str = Field(..., description="用户昵称")
     read_time: datetime = Field(..., description="阅读时间")
+
+from app.schemas.common import PageResult
+
+class NotificationPaginationOut(PageResult[NotificationOut]):
+    pass

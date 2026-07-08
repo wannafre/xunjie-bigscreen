@@ -64,6 +64,29 @@ async def get_current_user(
     user = await get_user_by_username(db, username)
     if user is None:
         raise credentials_exception
+
+    # Enforce: users without role or menus associated with role cannot access backend
+    if user.username != "admin":
+        active_roles = [r for r in user.roles if r.status == "0"]
+        if not active_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="没有分配角色或角色已被停用，禁止访问后台！"
+            )
+        has_menu = False
+        for r in active_roles:
+            for m in r.menus:
+                if m.status == "0":
+                    has_menu = True
+                    break
+            if has_menu:
+                break
+        if not has_menu:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="角色下未分配任何菜单，禁止访问后台！"
+            )
+
     return user
 
 def check_permissions(required_perm: str):
@@ -141,6 +164,30 @@ async def login(
             message="用户名或密码错误"
         )
         
+    # Enforce: users without role or menus associated with role cannot access backend
+    if user.username != "admin":
+        active_roles = [r for r in user.roles if r.status == "0"]
+        if not active_roles:
+            return make_response(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code=ResponseCode.FORBIDDEN,
+                message="没有分配角色或角色已被停用，禁止登录后台！"
+            )
+        has_menu = False
+        for r in active_roles:
+            for m in r.menus:
+                if m.status == "0":
+                    has_menu = True
+                    break
+            if has_menu:
+                break
+        if not has_menu:
+            return make_response(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code=ResponseCode.FORBIDDEN,
+                message="角色下未分配任何菜单，禁止登录后台！"
+            )
+
     # 认证成功，重置失败次数计数器
     captcha_manager.reset_fail(username)
     captcha_manager.reset_fail(ip)

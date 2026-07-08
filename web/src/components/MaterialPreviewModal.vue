@@ -91,11 +91,31 @@ const chartError = ref('')
 const previewTheme = ref<'dark' | 'light'>('dark')
 const previewContent = ref('')
 
+function getCorsSafeUrl(url: string | null | undefined): string {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      const urlObj = new URL(url)
+      if (urlObj.pathname.startsWith('/uploads')) {
+        return urlObj.pathname
+      }
+    } catch (_) {}
+    return url
+  }
+  if (url.startsWith('uploads/')) {
+    return '/' + url
+  }
+  if (url.startsWith('/uploads/')) {
+    return url
+  }
+  return resolveImageUrl(url)
+}
+
 async function loadGeoJsonData(configData: any): Promise<any> {
   if (!configData) return null
   if (configData.url) {
     try {
-      const res = await fetch(resolveImageUrl(configData.url))
+      const res = await fetch(getCorsSafeUrl(configData.url))
       if (res.ok) {
         return await res.json()
       }
@@ -108,6 +128,53 @@ async function loadGeoJsonData(configData: any): Promise<any> {
   return configData
 }
 
+function getImageDimensions(url: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.src = url
+    img.onload = () => {
+      resolve({
+        width: img.naturalWidth || 1920,
+        height: img.naturalHeight || 1080
+      })
+    }
+    img.onerror = () => {
+      resolve({ width: 1920, height: 1080 })
+    }
+  })
+}
+
+async function registerMapFromMaterialInModal(mapName: string, material: any) {
+  if (!material || !echartsModule) return
+  
+  if (material.category === 'geojson') {
+    const geoJsonData = await loadGeoJsonData(material.config_data)
+    if (geoJsonData) {
+      echartsModule.registerMap(mapName, geoJsonData)
+    }
+  } else if (material.category === 'image') {
+    const relativeUrl = material.thumbnail || material.config_data?.image
+    if (!relativeUrl) return
+    const fileUrl = getCorsSafeUrl(relativeUrl)
+    
+    if (relativeUrl.toLowerCase().endsWith('.svg')) {
+      const res = await fetch(fileUrl)
+      if (res.ok) {
+        const svgText = await res.text()
+        echartsModule.registerMap(mapName, { svg: svgText })
+      }
+    } else {
+      const dimensions = await getImageDimensions(fileUrl)
+      const svgText = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dimensions.width} ${dimensions.height}">
+          <image href="${fileUrl}" width="${dimensions.width}" height="${dimensions.height}" x="0" y="0" />
+        </svg>
+      `.trim()
+      echartsModule.registerMap(mapName, { svg: svgText })
+    }
+  }
+}
+
 async function loadPreviewContent() {
   previewContent.value = ''
   if (!props.material) return
@@ -116,7 +183,7 @@ async function loadPreviewContent() {
     if (config && config.url) {
       previewContent.value = '正在加载 GeoJSON 地图数据...'
       try {
-        const res = await fetch(resolveImageUrl(config.url))
+        const res = await fetch(getCorsSafeUrl(config.url))
         if (res.ok) {
           const data = await res.json()
           previewContent.value = JSON.stringify(data, null, 2)
@@ -260,27 +327,40 @@ async function initChartSandbox() {
       // ECharts
       option = props.material?.config_data || {}
       
-      // Register map if _geoJsonId exists
-      if (option._geoJsonId) {
+      // Register maps if _geoJsonMap (new format) or _geoJsonId (legacy format) exists
+      const geoMap = option._geoJsonMap
+      const rawId = option._geoJsonId
+      if ((geoMap && typeof geoMap === 'object') || rawId) {
         try {
-          const res: any = await getOfficialMaterials('geojson')
-          const ids = Array.isArray(option._geoJsonId) ? option._geoJsonId : [option._geoJsonId]
-          for (const id of ids) {
-            const geoJsonMaterial = (res || []).find((item: any) => item.id === id)
-            if (geoJsonMaterial && geoJsonMaterial.config_data) {
-              const geoJsonData = await loadGeoJsonData(geoJsonMaterial.config_data)
-              if (geoJsonData) {
+          const resGeo: any = await getOfficialMaterials({ category: 'geojson', page: 1, page_size: 100 })
+          const resImg: any = await getOfficialMaterials({ category: 'image', page: 1, page_size: 100 })
+          const geoItems = [...(resGeo.items || []), ...(resImg.items || [])]
+          
+          if (geoMap && typeof geoMap === 'object') {
+            for (const [mapName, id] of Object.entries(geoMap)) {
+              const mapMaterial = geoItems.find((item: any) => item.id === id)
+              if (mapMaterial) {
+                await registerMapFromMaterialInModal(mapName, mapMaterial)
+              }
+            }
+          }
+          
+          if (rawId) {
+            const ids = Array.isArray(rawId) ? rawId : [rawId]
+            for (const id of ids) {
+              const mapMaterial = geoItems.find((item: any) => item.id === id)
+              if (mapMaterial) {
                 if (ids.length === 1) {
                   const mapName = findMapName(option) || 'custom_map'
-                  echartsModule.registerMap(mapName, geoJsonData)
+                  await registerMapFromMaterialInModal(mapName, mapMaterial)
                 }
-                echartsModule.registerMap(`map_${id}`, geoJsonData)
-                if (geoJsonMaterial.name) {
-                  echartsModule.registerMap(geoJsonMaterial.name, geoJsonData)
+                await registerMapFromMaterialInModal(`map_${id}`, mapMaterial)
+                if (mapMaterial.name) {
+                  await registerMapFromMaterialInModal(mapMaterial.name, mapMaterial)
                 }
-                if (geoJsonMaterial.config_data.filename) {
-                  const baseName = geoJsonMaterial.config_data.filename.replace(/\.json$/i, '')
-                  echartsModule.registerMap(baseName, geoJsonData)
+                if (mapMaterial.config_data?.filename) {
+                  const baseName = mapMaterial.config_data.filename.replace(/\.json$/i, '')
+                  await registerMapFromMaterialInModal(baseName, mapMaterial)
                 }
               }
             }

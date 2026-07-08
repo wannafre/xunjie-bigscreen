@@ -35,3 +35,8 @@ class MaterialOut(MaterialBase):
 
     class Config:
         from_attributes = True
+
+from app.schemas.common import PageResult
+
+class MaterialPaginationOut(PageResult[MaterialOut]):
+    pass

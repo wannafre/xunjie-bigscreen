@@ -94,7 +94,7 @@ a {
   align-items: center !important;
   justify-content: space-between !important;
   gap: 14px !important;
-  flex-wrap: wrap !important;
+  flex-wrap: nowrap !important;
 }
 
 .app-main :where(.title, .dict-panel-title) {
@@ -122,7 +122,7 @@ a {
   align-items: center !important;
   justify-content: flex-end !important;
   gap: 10px !important;
-  flex-wrap: wrap !important;
+  flex-wrap: nowrap !important;
   flex: 1 1 auto !important;
 }
 
@@ -595,6 +595,10 @@ a {
   .app-main .arco-card-header,
   .app-main .arco-card-body {
     padding: 16px !important;
+  }
+
+  .app-main .header-actions {
+    flex-wrap: wrap !important;
   }
 
   .app-main .header-actions,

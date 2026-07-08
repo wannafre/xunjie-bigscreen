@@ -1,4 +1,4 @@
-﻿import { computed, ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
 import { getMenuTree } from '../../api/menu'
 
@@ -17,8 +17,12 @@ export interface LayoutMenuItem {
 }
 
 export function resolveMenuPath(path?: string) {
-  if (!path) return '/'
-  return path.startsWith('/') ? path : `/${path}`
+  if (!path) return '/manager'
+  let p = path.startsWith('/') ? path : `/${path}`
+  if (!p.startsWith('/manager')) {
+    p = `/manager${p}`
+  }
+  return p
 }
 
 /**

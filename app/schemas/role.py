@@ -26,3 +26,8 @@ class RoleOut(RoleBase):
         @classmethod
         def compute_roles(cls, obj) -> str:
             return obj.role_key
+
+from app.schemas.common import PageResult
+
+class RolePaginationOut(PageResult[RoleOut]):
+    pass

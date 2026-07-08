@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 
 from app.core.database import get_db
 from app.api.v1.endpoints.auth import check_permissions, get_current_user
 from app.schemas.dict import (
-    DictTypeCreate, DictTypeUpdate, DictTypeOut,
-    DictDataCreate, DictDataUpdate, DictDataOut
+    DictTypeCreate, DictTypeUpdate, DictTypeOut, DictTypePaginationOut,
+    DictDataCreate, DictDataUpdate, DictDataOut, DictDataPaginationOut
 )
 from app.crud import dict as crud_dict
 
@@ -30,15 +30,20 @@ async def create_dict_type_endpoint(
         )
     return await crud_dict.create_dict_type(db, type_in)
 
-@router.get("/type", response_model=List[DictTypeOut])
+@router.get("/type", response_model=DictTypePaginationOut)
 async def list_dict_types_endpoint(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页大小"),
+    dict_name: Optional[str] = Query(None, description="按名称模糊搜索"),
     db: AsyncSession = Depends(get_db),
     current_user = Depends(check_permissions("system:dict:list"))
 ):
     """
-    Get all dictionary types.
+    Get all dictionary types with pagination.
     """
-    return await crud_dict.get_all_dict_types(db)
+    skip = (page - 1) * page_size
+    total, items = await crud_dict.get_all_dict_types(db, skip=skip, limit=page_size, dict_name=dict_name)
+    return {"total": total, "items": items}
 
 @router.get("/type/{dict_id}", response_model=DictTypeOut)
 async def get_dict_type_endpoint(
@@ -105,16 +110,21 @@ async def create_dict_data_endpoint(
     """
     return await crud_dict.create_dict_data(db, data_in)
 
-@router.get("/data", response_model=List[DictDataOut])
+@router.get("/data", response_model=DictDataPaginationOut)
 async def list_dict_data_endpoint(
-    dict_type: str,
+    dict_type: str = Query(..., description="字典类型标识"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页大小"),
+    dict_label: Optional[str] = Query(None, description="按标签模糊搜索"),
     db: AsyncSession = Depends(get_db),
     current_user = Depends(check_permissions("system:dict:list"))
 ):
     """
-    Get dictionary data list filtered by dictionary type.
+    Get dictionary data list filtered by dictionary type with pagination.
     """
-    return await crud_dict.get_dict_data_by_type(db, dict_type)
+    skip = (page - 1) * page_size
+    total, items = await crud_dict.get_dict_data_by_type(db, dict_type, skip=skip, limit=page_size, dict_label=dict_label)
+    return {"total": total, "items": items}
 
 @router.get("/data/{dict_code}", response_model=DictDataOut)
 async def get_dict_data_endpoint(
@@ -177,4 +187,5 @@ async def get_dict_data_by_type_endpoint(
     """
     Get active dictionary data options by type for UI inputs.
     """
-    return await crud_dict.get_dict_data_by_type(db, dict_type)
+    _total, items = await crud_dict.get_dict_data_by_type(db, dict_type, skip=0, limit=1000)
+    return items

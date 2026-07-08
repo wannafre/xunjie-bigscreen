@@ -128,9 +128,23 @@
         </a-row>
 
         <a-form-item field="roles" label="分配角色">
-          <a-select v-model="userForm.roles" placeholder="请选择角色" multiple allow-clear class="full-width">
-            <a-option v-for="item in roleOptions" :key="item.role_key" :value="item.role_key">{{ item.role_name
-              }}</a-option>
+          <a-select 
+            v-model="userForm.roles" 
+            placeholder="请选择角色" 
+            multiple 
+            allow-clear 
+            allow-search
+            :filter-option="false"
+            @search="handleRoleSearch"
+            @popup-scroll="handleRolePopupScroll"
+            class="full-width"
+          >
+            <a-option v-for="item in roleOptions" :key="item.role_key" :value="item.role_key">{{ item.role_name }}</a-option>
+            <template #footer v-if="hasMoreRoles">
+              <div style="padding: 6px; text-align: center; color: #86909c; font-size: 11px;">
+                滚动加载更多...
+              </div>
+            </template>
           </a-select>
         </a-form-item>
 
@@ -156,6 +170,9 @@ import { deepClone, formatDate } from '../../../utils'
 const loading = ref(false)
 const tableData = ref<any[]>([])
 const roleOptions = ref<any[]>([])
+const roleSearchKeyword = ref('')
+const rolePage = ref(1)
+const hasMoreRoles = ref(false)
 const dictStore = useDictStore()
 const userStore = useUserStore()
 const dialogVisible = ref(false)
@@ -207,12 +224,42 @@ const formRules = {
   password: [{ required: true, message: '密码不能为空', trigger: 'blur' }, { min: 6, message: '密码不能少于6位' }]
 }
 
-async function getRoles() {
+async function getRoles(append = false) {
   try {
-    const res: any = await getRoleList()
-    roleOptions.value = res || []
+    const res: any = await getRoleList({
+      page: rolePage.value,
+      page_size: 10,
+      role_name: roleSearchKeyword.value || undefined
+    })
+    const items = res.items || []
+    const merged = append ? [...roleOptions.value] : []
+    
+    for (const item of items) {
+      if (!merged.some(r => r.role_key === item.role_key)) {
+        merged.push(item)
+      }
+    }
+    
+    roleOptions.value = merged
+    hasMoreRoles.value = roleOptions.value.length < (res.total || 0)
   } catch (err) {
     console.error('获取角色列表失败', err)
+  }
+}
+
+async function handleRoleSearch(searchText: string) {
+  roleSearchKeyword.value = searchText
+  rolePage.value = 1
+  await getRoles(false)
+}
+
+async function handleRolePopupScroll(e: any) {
+  const target = e.target
+  if (target.scrollTop + target.clientHeight >= target.scrollHeight - 5) {
+    if (hasMoreRoles.value && !loading.value) {
+      rolePage.value += 1
+      await getRoles(true)
+    }
   }
 }
 
@@ -220,15 +267,15 @@ async function getList() {
   loading.value = true
   try {
     const params = {
-      skip: (pagination.current - 1) * pagination.pageSize,
-      limit: pagination.pageSize,
+      page: pagination.current,
+      page_size: pagination.pageSize,
       username: searchForm.username || undefined,
       nickname: searchForm.nickname || undefined,
       status: searchForm.status || undefined
     }
     const res: any = await getUserList(params)
-    tableData.value = res || []
-    pagination.total = res.length || 0 // Backend currently returns simple list
+    tableData.value = res.items || []
+    pagination.total = res.total || 0
   } catch (err) {
     console.error(err)
   } finally {
@@ -261,16 +308,38 @@ function resetForm() {
   })
 }
 
-function handleCreate() {
+function syncSelectedRolesToOptions() {
+  if (userForm.roles && userForm.roles.length > 0) {
+    for (const roleKey of userForm.roles) {
+      if (!roleOptions.value.some(r => r.role_key === roleKey)) {
+        roleOptions.value.push({
+          id: -roleOptions.value.length - 1,
+          role_name: roleKey,
+          role_key: roleKey,
+          status: '0'
+        })
+      }
+    }
+  }
+}
+
+async function handleCreate() {
   resetForm()
   dialogType.value = 'create'
+  roleSearchKeyword.value = ''
+  rolePage.value = 1
+  await getRoles(false)
   dialogVisible.value = true
 }
 
-function handleUpdate(row: any) {
+async function handleUpdate(row: any) {
   resetForm()
   Object.assign(userForm, deepClone(row))
   dialogType.value = 'update'
+  roleSearchKeyword.value = ''
+  rolePage.value = 1
+  await getRoles(false)
+  syncSelectedRolesToOptions()
   dialogVisible.value = true
 }
 

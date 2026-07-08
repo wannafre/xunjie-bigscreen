@@ -105,7 +105,7 @@ export function listToTree<T = any>(
  */
 export function resolveImageUrl(path: string | null | undefined): string {
   if (!path) return ''
-  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('blob:')) {
     return path
   }
   const prefix = import.meta.env.VITE_APP_RESOURCE_PREFIX || ''

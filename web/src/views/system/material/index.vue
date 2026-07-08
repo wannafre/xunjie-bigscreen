@@ -113,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
+import { ref, reactive, onMounted, computed, nextTick } from 'vue'
 import { Message, Modal } from '@arco-design/web-vue'
 import type { TableColumnData } from '@arco-design/web-vue'
 import { IconPlus } from '@arco-design/web-vue/es/icon'
@@ -220,14 +220,31 @@ function getSubcategoryLabel(val: string): string {
 
 const geoJsonMaterials = ref<any[]>([])
 
-
-
+function getCorsSafeUrl(url: string | null | undefined): string {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      const urlObj = new URL(url)
+      if (urlObj.pathname.startsWith('/uploads')) {
+        return urlObj.pathname
+      }
+    } catch (_) {}
+    return url
+  }
+  if (url.startsWith('uploads/')) {
+    return '/' + url
+  }
+  if (url.startsWith('/uploads/')) {
+    return url
+  }
+  return resolveImageUrl(url)
+}
 
 async function loadGeoJsonData(configData: any): Promise<any> {
   if (!configData) return null
   if (configData.url) {
     try {
-      const res = await fetch(resolveImageUrl(configData.url))
+      const res = await fetch(getCorsSafeUrl(configData.url))
       if (res.ok) {
         return await res.json()
       }
@@ -240,12 +257,63 @@ async function loadGeoJsonData(configData: any): Promise<any> {
   return configData
 }
 
+function getImageDimensions(url: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.src = url
+    img.onload = () => {
+      resolve({
+        width: img.naturalWidth || 1920,
+        height: img.naturalHeight || 1080
+      })
+    }
+    img.onerror = () => {
+      resolve({ width: 1920, height: 1080 })
+    }
+  })
+}
+
+async function registerMapFromMaterialInIndex(mapName: string, material: any) {
+  if (!material) return
+  
+  if (material.category === 'geojson') {
+    const geoJsonData = await loadGeoJsonData(material.config_data)
+    if (geoJsonData) {
+      echarts.registerMap(mapName, geoJsonData)
+      previewRegisteredMaps.push(mapName)
+    }
+  } else if (material.category === 'image') {
+    const relativeUrl = material.thumbnail || material.config_data?.image
+    if (!relativeUrl) return
+    const fileUrl = getCorsSafeUrl(relativeUrl)
+    
+    if (relativeUrl.toLowerCase().endsWith('.svg')) {
+      const res = await fetch(fileUrl)
+      if (res.ok) {
+        const svgText = await res.text()
+        echarts.registerMap(mapName, { svg: svgText })
+        previewRegisteredMaps.push(mapName)
+      }
+    } else {
+      const dimensions = await getImageDimensions(fileUrl)
+      const svgText = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dimensions.width} ${dimensions.height}">
+          <image href="${fileUrl}" width="${dimensions.width}" height="${dimensions.height}" x="0" y="0" />
+        </svg>
+      `.trim()
+      echarts.registerMap(mapName, { svg: svgText })
+      previewRegisteredMaps.push(mapName)
+    }
+  }
+}
+
 async function loadGeoJsonMaterials() {
   try {
-    const res: any = await getOfficialMaterials('geojson')
-    geoJsonMaterials.value = res || []
+    const resGeo: any = await getOfficialMaterials({ category: 'geojson', page: 1, page_size: 100 })
+    const resImg: any = await getOfficialMaterials({ category: 'image', page: 1, page_size: 100 })
+    geoJsonMaterials.value = [...(resGeo.items || []), ...(resImg.items || [])]
   } catch (e) {
-    console.error('Failed to load GeoJSON materials:', e)
+    console.error('Failed to load GeoJSON/Image materials:', e)
   }
 }
 
@@ -311,13 +379,14 @@ const previewBackgroundStyle = computed(() => {
 async function getList() {
   loading.value = true
   try {
-    const res: any = await getOfficialMaterials(searchForm.category)
-    let filtered = res || []
-    if (searchForm.name.trim()) {
-      filtered = filtered.filter((m: any) => m.name.toLowerCase().includes(searchForm.name.toLowerCase()))
-    }
-    tableData.value = filtered
-    pagination.total = filtered.length
+    const res: any = await getOfficialMaterials({
+      category: searchForm.category || undefined,
+      name: searchForm.name.trim() || undefined,
+      page: pagination.current,
+      page_size: pagination.pageSize
+    })
+    tableData.value = res.items || []
+    pagination.total = res.total || 0
   } catch (err) {
     console.error(err)
     Message.error('素材列表加载失败')
@@ -333,6 +402,7 @@ function handleSearch() {
 
 function onPageChange(current: number) {
   pagination.current = current
+  getList()
 }
 
 function handleCreate() {
@@ -435,28 +505,35 @@ async function initPreviewChart() {
       // ECharts Option
       opt = previewItem.value.config_data || {}
       
-      // Register map if _geoJsonId exists
-      if (opt._geoJsonId) {
-        const ids = Array.isArray(opt._geoJsonId) ? opt._geoJsonId : [opt._geoJsonId]
-        for (const id of ids) {
-          const geoJsonMaterial = geoJsonMaterials.value.find(item => item.id === id)
-          if (geoJsonMaterial && geoJsonMaterial.config_data) {
-            const geoJsonData = await loadGeoJsonData(geoJsonMaterial.config_data)
-            if (geoJsonData) {
+      // Register maps if _geoJsonMap (new format) or _geoJsonId (legacy format) exists
+      const geoMap = opt._geoJsonMap
+      const rawId = opt._geoJsonId
+      if ((geoMap && typeof geoMap === 'object') || rawId) {
+        if (geoMap && typeof geoMap === 'object') {
+          for (const [mapName, id] of Object.entries(geoMap)) {
+            const mapMaterial = geoJsonMaterials.value.find((item: any) => item.id === id)
+            if (mapMaterial) {
+              await registerMapFromMaterialInIndex(mapName, mapMaterial)
+            }
+          }
+        }
+        
+        if (rawId) {
+          const ids = Array.isArray(rawId) ? rawId : [rawId]
+          for (const id of ids) {
+            const mapMaterial = geoJsonMaterials.value.find((item: any) => item.id === id)
+            if (mapMaterial) {
               if (ids.length === 1) {
                 const mapName = findMapName(opt) || 'custom_map_' + Date.now()
-                echarts.registerMap(mapName, geoJsonData)
-                previewRegisteredMaps.push(mapName)
+                await registerMapFromMaterialInIndex(mapName, mapMaterial)
               }
-              const idMapName = `map_${id}`
-              echarts.registerMap(idMapName, geoJsonData)
-              previewRegisteredMaps.push(idMapName)
-              if (geoJsonMaterial.name) {
-                echarts.registerMap(geoJsonMaterial.name, geoJsonData)
+              await registerMapFromMaterialInIndex(`map_${id}`, mapMaterial)
+              if (mapMaterial.name) {
+                await registerMapFromMaterialInIndex(mapMaterial.name, mapMaterial)
               }
-              if (geoJsonMaterial.config_data.filename) {
-                const baseName = geoJsonMaterial.config_data.filename.replace(/\.json$/i, '')
-                echarts.registerMap(baseName, geoJsonData)
+              if (mapMaterial.config_data?.filename) {
+                const baseName = mapMaterial.config_data.filename.replace(/\.json$/i, '')
+                await registerMapFromMaterialInIndex(baseName, mapMaterial)
               }
             }
           }
@@ -553,6 +630,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   width: 100%;
+  
 }
 
 .title {

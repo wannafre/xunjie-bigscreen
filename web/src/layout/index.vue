@@ -1,38 +1,25 @@
-﻿<template>
+<template>
   <a-layout class="layout-container">
-    <AppSidebar
-      :collapsed="isCollapse"
-      :menus="menuList"
-      :active-menu="activeMenu"
-      :default-open-keys="defaultOpenKeys"
-      @menu-click="handleMenuClick"
-    />
+    <AppSidebar :collapsed="isCollapse" :menus="menuList" :active-menu="activeMenu" :default-open-keys="defaultOpenKeys"
+      @menu-click="handleMenuClick" />
 
     <a-layout class="main-layout">
-      <AppHeader
-        :collapsed="isCollapse"
-        :system-title="settings.title"
-        :current-title="currentRouteTitle"
-        :user-info="userStore"
-        :unread-count="unreadCount"
-        :notice-list="noticeList"
-        @toggle-collapse="isCollapse = !isCollapse"
-        @mark-all-read="handleMarkAllRead"
-        @view-notice="handleViewNotice"
-        @go-notification-center="goToNotificationCenter"
-        @profile="goToProfile"
-        @logout="handleLogout"
-      />
+      <AppHeader :collapsed="isCollapse" :system-title="settings.title" :current-title="currentRouteTitle"
+        :user-info="userStore" :unread-count="unreadCount" :notice-list="noticeList"
+        @toggle-collapse="isCollapse = !isCollapse" @mark-all-read="handleMarkAllRead" @view-notice="handleViewNotice"
+        @go-notification-center="goToNotificationCenter" @profile="goToProfile" @logout="handleLogout" />
 
-      <a-scrollbar class="main-scrollbar" outer-style="flex: 1; min-height: 0">
-        <a-layout-content class="app-main">
-          <router-view v-slot="{ Component }">
-            <transition name="fade-transform" mode="out-in">
-              <component :is="Component" />
-            </transition>
-          </router-view>
-        </a-layout-content>
-      </a-scrollbar>
+      <a-layout-content class="main-scrollbar">
+        <div class="app-main">
+          <div class="app-content">
+            <router-view v-slot="{ Component }">
+              <transition name="fade-transform" mode="out-in">
+                <component :is="Component" />
+              </transition>
+            </router-view>
+          </div>
+        </div>
+      </a-layout-content>
     </a-layout>
   </a-layout>
 
@@ -78,11 +65,11 @@ const {
 } = useNoticeCenter()
 
 function goToNotificationCenter() {
-  router.push('/notification')
+  router.push('/manager/notification')
 }
 
 function goToProfile() {
-  router.push('/system/account')
+  router.push('/manager/system/account')
 }
 
 async function handleLogout() {
@@ -126,16 +113,30 @@ onMounted(() => {
 
 .main-scrollbar {
   position: relative;
-  height: 100%;
-  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .app-main {
   position: relative;
-  min-height: calc(100vh - 84px);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.app-content {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   padding: 22px 24px 30px;
-  background: transparent;
   box-sizing: border-box;
+  background: transparent;
   color: #172033;
 }
 

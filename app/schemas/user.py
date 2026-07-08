@@ -68,4 +68,9 @@ class UserPasswordUpdate(BaseModel):
     old_password: str = Field(..., description="旧密码")
     new_password: str = Field(..., min_length=6, description="新密码")
 
+from app.schemas.common import PageResult
+
+class UserPaginationOut(PageResult[UserOut]):
+    pass
+
 

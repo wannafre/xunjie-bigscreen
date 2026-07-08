@@ -16,8 +16,8 @@
       </template>
 
       <a-scrollbar style="height: calc(100vh - 240px); overflow: auto;">
-        <a-table :loading="loading" :data="tableData" row-key="id" :columns="columns" :pagination="false"
-          :bordered="false">
+        <a-table :loading="loading" :data="tableData" row-key="id" :columns="columns" :pagination="pagination"
+          @page-change="onPageChange" :bordered="false">
           <template #status="{ record }">
             <a-tag :color="record.status === '0' ? 'green' : 'red'">
               {{ dictStore.getDictLabel('general_status', record.status) }}
@@ -82,6 +82,13 @@ const dialogVisible = ref(false)
 const dialogType = ref<'create' | 'update'>('create')
 const roleFormRef = ref()
 
+const pagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+  showTotal: true
+})
+
 const columns: TableColumnData[] = [
   { title: '角色名称', dataIndex: 'role_name', width: 180 },
   { title: '权限字符', dataIndex: 'role_key', width: 180 },
@@ -125,13 +132,22 @@ async function getMenus() {
 async function getList() {
   loading.value = true
   try {
-    const res: any = await getRoleList()
-    tableData.value = res || []
+    const res: any = await getRoleList({
+      page: pagination.current,
+      page_size: pagination.pageSize
+    })
+    tableData.value = res.items || []
+    pagination.total = res.total || 0
   } catch (err) {
     console.error(err)
   } finally {
     loading.value = false
   }
+}
+
+function onPageChange(current: number) {
+  pagination.current = current
+  getList()
 }
 
 function resetForm() {

@@ -16,9 +16,13 @@ const routes: Array<RouteRecordRaw> = [
   },
   {
     path: '/',
+    redirect: '/manager'
+  },
+  {
+    path: '/manager',
     name: 'Layout',
     component: () => import('../layout/index.vue'),
-    redirect: '/dashboard',
+    redirect: '/manager/dashboard',
     children: [
       {
         path: 'dashboard',
@@ -103,8 +107,13 @@ async function generateDynamicRoutes() {
         if (item.menu_type === 'C' && item.path) {
           const comp = loadComponent(item.component, item.path)
           if (comp) {
+            // Strip leading slash and 'manager/' prefix to make it a relative path under '/manager' parent
+            let relativePath = item.path.replace(/^\/+/, '')
+            if (relativePath.startsWith('manager/')) {
+              relativePath = relativePath.substring(8)
+            }
             router.addRoute('Layout', {
-              path: item.path,
+              path: relativePath,
               name: item.path,
               component: comp,
               meta: { title: item.menu_name, icon: item.icon }
@@ -125,7 +134,7 @@ router.beforeEach(async (to, _from) => {
 
   if (token) {
     if (to.path === '/login') {
-      return { path: '/' }
+      return { path: '/manager' }
     } else {
       // Check if we have user info
       if (userStore.roles.length === 0) {

@@ -13,9 +13,27 @@ async def get_dict_type_by_type(db: AsyncSession, dict_type: str) -> Optional[Di
     result = await db.execute(select(DictType).filter(DictType.dict_type == dict_type))
     return result.scalars().first()
 
-async def get_all_dict_types(db: AsyncSession) -> List[DictType]:
-    result = await db.execute(select(DictType))
-    return list(result.scalars().all())
+async def get_all_dict_types(
+    db: AsyncSession,
+    skip: int = 0,
+    limit: int = 100,
+    dict_name: Optional[str] = None
+) -> tuple[int, List[DictType]]:
+    """
+    Get all dictionary types with pagination and optional name filter.
+    """
+    query = select(DictType)
+    if dict_name:
+        query = query.filter(DictType.dict_name.like(f"%{dict_name}%"))
+
+    from sqlalchemy import func
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    query = query.order_by(DictType.dict_id.asc()).offset(skip).limit(limit)
+    result = await db.execute(query)
+    return total, list(result.scalars().all())
 
 async def create_dict_type(db: AsyncSession, type_in: DictTypeCreate) -> DictType:
     db_type = DictType(**type_in.model_dump())
@@ -68,13 +86,28 @@ async def get_dict_data_by_id(db: AsyncSession, dict_code: int) -> Optional[Dict
     result = await db.execute(select(DictData).filter(DictData.dict_code == dict_code))
     return result.scalars().first()
 
-async def get_dict_data_by_type(db: AsyncSession, dict_type: str) -> List[DictData]:
-    result = await db.execute(
-        select(DictData)
-        .filter(DictData.dict_type == dict_type)
-        .order_by(DictData.dict_sort.asc())
-    )
-    return list(result.scalars().all())
+async def get_dict_data_by_type(
+    db: AsyncSession,
+    dict_type: str,
+    skip: int = 0,
+    limit: int = 100,
+    dict_label: Optional[str] = None
+) -> tuple[int, List[DictData]]:
+    """
+    Get dictionary data by type with pagination and optional label filter.
+    """
+    query = select(DictData).filter(DictData.dict_type == dict_type)
+    if dict_label:
+        query = query.filter(DictData.dict_label.like(f"%{dict_label}%"))
+
+    from sqlalchemy import func
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    query = query.order_by(DictData.dict_sort.asc()).offset(skip).limit(limit)
+    result = await db.execute(query)
+    return total, list(result.scalars().all())
 
 async def create_dict_data(db: AsyncSession, data_in: DictDataCreate) -> DictData:
     db_data = DictData(**data_in.model_dump())

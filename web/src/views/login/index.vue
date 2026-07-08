@@ -193,7 +193,7 @@ const handleLogin = async () => {
           captchaVerification: loginForm.captchaVerification
         })
         ElMessage.success('登录成功')
-        const redirect = (route.query.redirect as string) || '/'
+        const redirect = (route.query.redirect as string) || '/manager'
         router.push({ path: redirect })
       } catch (err: any) {
         // Capture 428 status code indicating Captcha challenge is required

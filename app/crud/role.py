@@ -19,12 +19,28 @@ async def get_role_by_key(db: AsyncSession, role_key: str) -> Optional[Role]:
     result = await db.execute(select(Role).filter(Role.role_key == role_key))
     return result.scalars().first()
 
-async def get_all_roles(db: AsyncSession) -> List[Role]:
+async def get_all_roles(
+    db: AsyncSession,
+    skip: int = 0,
+    limit: int = 100,
+    role_name: Optional[str] = None
+) -> tuple[int, List[Role]]:
     """
-    Get all roles.
+    Get all roles, returning total count and paginated list.
     """
-    result = await db.execute(select(Role))
-    return list(result.scalars().all())
+    query = select(Role)
+    if role_name:
+        query = query.filter(Role.role_name.like(f"%{role_name}%"))
+        
+    # Count total records
+    from sqlalchemy import func
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    query = query.order_by(Role.id.asc()).offset(skip).limit(limit)
+    result = await db.execute(query)
+    return total, list(result.scalars().all())
 
 async def create_role(db: AsyncSession, role_in: RoleCreate) -> Role:
     """

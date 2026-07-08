@@ -55,7 +55,7 @@
             <a-grid-item>
               <a-form-item label="资源图片上传" required>
                 <div class="upload-area">
-                  <input type="file" ref="fileInputRef" @change="handleFileUpload" style="display:none;" />
+                  <input type="file" ref="fileInputRef" @change="handleFileUpload" accept="image/*,image/svg+xml" style="display:none;" />
                   <a-button type="secondary" size="small" @click="fileInputRef?.click()" :loading="uploading">
                     <template #icon><IconUpload /></template>
                     上传图片
@@ -69,87 +69,113 @@
             </a-grid-item>
           </a-grid>
 
-          <!-- Associated GeoJSON select for ECharts Map -->
-          <a-form-item label="关联地图数据 (GeoJSON)" v-if="materialForm.category === 'echarts' && isMapChart" required style="margin-top: 10px;">
-            <a-select v-model="associatedGeoJsonId" placeholder="请选择关联的 GeoJSON 地图数据" allow-clear multiple @change="handleGeoJsonAssociationChange">
-              <a-option v-for="item in geoJsonMaterials" :key="item.id" :value="item.id">
-                {{ item.name }}
-              </a-option>
-            </a-select>
-          </a-form-item>
+          <!-- Associated Map key-value mapping list for ECharts Map -->
+          <div v-if="materialForm.category === 'echarts' && isMapChart" class="geojson-mapping-container">
+            <div class="geojson-mapping-title">
+              <span>关联地图数据 (GeoJSON / 装饰素材)</span>
+              <a-button type="text" size="mini" @click="addGeoJsonEntry">
+                <template #icon><IconPlus /></template>
+                添加地图关联
+              </a-button>
+            </div>
+            <div v-for="(entry, index) in geoJsonMapEntries" :key="index" class="geojson-mapping-row">
+              <a-input v-model="entry.mapName" placeholder="ECharts map 注册名，如 china" style="width: 150px;" @input="syncGeoJsonMap" />
+              <a-select v-model="entry.sourceType" style="width: 110px;" @change="() => { entry.materialId = undefined; syncGeoJsonMap(); }">
+                <a-option value="geojson">GeoJSON地图</a-option>
+                <a-option value="image">装饰素材</a-option>
+              </a-select>
+              <a-select 
+                v-model="entry.materialId" 
+                placeholder="选择关联的地图数据" 
+                allow-search 
+                :filter-option="false"
+                @search="(val) => handleMapMaterialSearch(val, entry.sourceType)"
+                @popup-visible-change="(visible) => { if (visible) handleMapMaterialSearch('', entry.sourceType); }"
+                style="flex: 1;" 
+                @change="syncGeoJsonMap"
+              >
+                <a-option v-for="item in getMapOptions(entry.sourceType)" :key="item.id" :value="item.id">
+                  {{ item.name }}
+                </a-option>
+              </a-select>
+              <a-button type="text" status="danger" size="small" @click="removeGeoJsonEntry(index)">
+                <template #icon><IconDelete /></template>
+              </a-button>
+            </div>
+            <div v-if="geoJsonMapEntries.length === 0" class="geojson-mapping-empty">
+              暂未添加地图数据关联，点击上方按钮添加。
+            </div>
+          </div>
 
           <!-- JSON Option Editor (Only for charts) -->
           <a-form-item label="配置选项 Option (支持 JS Object / JSON 结构)" required v-if="materialForm.category === 'echarts'">
             <template #extra>
               <div class="json-tips">
-                <span>配置支持标准 JS 对象或 JSON 格式 (允许单引号、注释、无引号键名)。</span>
-                <a-link type="primary" size="mini" @click="formatJsonString">美化并转为 JSON</a-link>
+                <span>配置支持标准 JS 对象或 JSON 格式。</span>
+                <div class="editor-quick-actions">
+                  <a-link v-if="isMapChart" type="warning" size="mini" @click="confirmRestoreDefaultMapOption" style="margin-right: 12px;">还原地图默认 Option</a-link>
+                  <a-link type="primary" size="mini" @click="formatJsonString">美化并转为 JSON</a-link>
+                </div>
               </div>
             </template>
-            <a-textarea v-model="configJsonStr" placeholder="请输入核心配置选项，支持 JS 对象结构，例如 { title: { text: '图表' } }" :auto-size="{ minRows: 8, maxRows: 12 }" class="code-editor" @input="debouncedUpdatePreview" @keydown="handleJsonEditorKeydown" />
-            <div v-if="jsonSyntaxError" class="json-error-msg">{{ jsonSyntaxError }}</div>
+            <div style="width: 100%; display: flex; flex-direction: column;">
+              <div class="editor-input-wrapper">
+                <a-textarea v-model="configJsonStr" ref="jsonTextareaRef" placeholder="请输入核心配置选项，支持 JS 对象结构，例如 { title: { text: '图表' } }" :auto-size="{ minRows: 8, maxRows: 12 }" class="code-editor" @keydown="handleJsonEditorKeydown" />
+                <!-- Material Library Popover / Trigger -->
+                <div class="insert-asset-bar">
+                  <a-popover title="选择图片资源并插入到编辑器" trigger="click" position="bottom">
+                    <a-button type="outline" size="mini">
+                      <template #icon><IconImage /></template>
+                      插入图片资源
+                    </a-button>
+                    <template #content>
+                      <div class="asset-selector-popover-content" style="width: 280px; display: flex; flex-direction: column;">
+                        <a-input-search 
+                          v-model="imageSearchKeyword" 
+                          size="mini" 
+                          placeholder="输入名称搜索图片..." 
+                          style="margin-bottom: 8px;" 
+                          @search="handleImageSearch"
+                          allow-clear
+                          @clear="handleImageSearchClear"
+                        />
+                        <div class="asset-selector-grid">
+                          <div v-for="asset in imageAndSvgMaterials" :key="asset.id" class="asset-selector-item" @click="insertAssetUrl(asset)">
+                            <img v-if="asset.thumbnail" :src="resolveImageUrl(asset.thumbnail)" class="asset-grid-thumb" />
+                            <div class="asset-grid-name">{{ asset.name }}</div>
+                          </div>
+                          <div v-if="imageAndSvgMaterials.length === 0" class="asset-grid-empty">
+                            暂无图片素材。
+                          </div>
+                        </div>
+                        <div v-if="imageTotal > 12" class="asset-selector-pagination-bar" style="margin-top: 8px; display: flex; justify-content: center; align-items: center; border-top: 1px solid #e5e6eb; padding-top: 8px;">
+                          <a-pagination
+                            v-model:current="imagePage"
+                            :total="imageTotal"
+                            :page-size="12"
+                            size="mini"
+                            simple
+                            @change="handleImagePageChange"
+                          />
+                        </div>
+                      </div>
+                    </template>
+                  </a-popover>
+                </div>
+              </div>
+              <div v-if="jsonSyntaxError" class="json-error-msg" style="margin-top: 6px;">{{ jsonSyntaxError }}</div>
+            </div>
           </a-form-item>
 
-          <!-- GeoJSON Map Data (Custom Dual-Mode Interface) -->
+          <!-- GeoJSON Map Data (Componentized Dual-Mode Interface) -->
           <template v-if="materialForm.category === 'geojson'">
-            <a-form-item label="数据导入方式" required style="margin-bottom: 12px;">
-              <a-radio-group v-model="geoJsonImportMode" type="button" size="small">
-                <a-radio value="upload">上传 JSON 文件</a-radio>
-                <a-radio value="edit">在线粘贴/编辑</a-radio>
-              </a-radio-group>
-            </a-form-item>
-
-            <!-- Upload Mode -->
-            <a-form-item label="GeoJSON 地图文件" required v-if="geoJsonImportMode === 'upload'" style="margin-bottom: 12px;">
-              <div v-if="!uploadedGeoJsonFileInfo" class="geojson-upload-zone" @click="triggerGeoJsonFileInput" @dragover.prevent @drop.prevent="handleGeoJsonFileDrop">
-                <div class="upload-trigger-container">
-                  <icon-upload class="upload-icon" />
-                  <div class="upload-text">点击选择文件或拖拽 GeoJSON 文件到此处 (仅支持 .json)</div>
-                </div>
-                <input
-                  type="file"
-                  ref="geoJsonFileInputRef"
-                  accept=".json"
-                  style="display: none"
-                  @change="handleGeoJsonFileChange"
-                />
-              </div>
-              <div v-else class="file-info-bar" style="margin-top: 0;">
-                <span>当前文件: <strong>{{ uploadedGeoJsonFileInfo.name }}</strong> ({{ uploadedGeoJsonFileInfo.size }})</span>
-                <a-link status="danger" @click="clearUploadedGeoJson">清除</a-link>
-              </div>
-              <div v-if="jsonSyntaxError" class="json-error-msg" style="margin-top: 6px;">{{ jsonSyntaxError }}</div>
-            </a-form-item>
-
-            <!-- Text/Edit Mode -->
-            <a-form-item label="地图 JSON 内容" required v-if="geoJsonImportMode === 'edit'" style="margin-bottom: 12px;">
-              <template #extra>
-                <div class="json-tips">
-                  <span>请输入符合标准 JSON 规范的内容 (属性名须用双引号包裹，不可含注释)。</span>
-                  <a-link type="primary" size="mini" @click="formatGeoJsonString">格式化 JSON</a-link>
-                </div>
-              </template>
-              <a-textarea 
-                v-model="configJsonStr" 
-                placeholder='请输入合法的 GeoJSON 数据，例如: &#10;{&#10;  "type": "FeatureCollection",&#10;  "features": []&#10;}' 
-                :auto-size="{ minRows: 8, maxRows: 12 }" 
-                class="code-editor" 
-                @input="validatePasteJson" 
-              />
-              <div v-if="jsonSyntaxError" class="json-error-msg" style="margin-top: 6px;">{{ jsonSyntaxError }}</div>
-            </a-form-item>
-
-            <!-- File Preview (Upload Mode only, shows read-only text of parsed JSON) -->
-            <a-form-item label="地图数据预览" v-if="geoJsonImportMode === 'upload' && configJsonStr && !jsonSyntaxError" style="margin-bottom: 12px;">
-              <div class="geojson-preview-box">
-                <a-textarea
-                  :model-value="editGeoJsonPreviewText"
-                  readonly
-                  :auto-size="{ minRows: 6, maxRows: 10 }"
-                  class="code-editor readonly"
-                />
-              </div>
-            </a-form-item>
+            <MaterialGeoJsonEditor
+              v-model="configJsonStr"
+              v-model:importMode="geoJsonImportMode"
+              v-model:uploadedFileInfo="uploadedGeoJsonFileInfo"
+              v-model:syntaxError="jsonSyntaxError"
+              :name="materialForm.name"
+            />
           </template>
 
           <!-- Background color and image url settings (Option-style) -->
@@ -179,44 +205,19 @@
         </a-form>
       </a-col>
 
-      <!-- Right: Live Preview -->
+      <!-- Right: Live Preview Box (Componentized) -->
       <a-col :span="11">
-        <div class="edit-preview-container">
-          <div class="preview-title">
-            <span>实时预览 (所见即所得)</span>
-            <a-radio-group v-if="materialForm.category === 'echarts' || materialForm.category === 'geojson'" v-model="editPreviewTheme" size="mini" type="button" @change="handleEditThemeChange">
-              <a-radio value="dark">暗底色</a-radio>
-              <a-radio value="light">亮底色</a-radio>
-            </a-radio-group>
-          </div>
-          <div class="preview-body">
-            <!-- ECharts preview -->
-            <div v-if="materialForm.category === 'echarts' || materialForm.category === 'geojson'" 
-              class="edit-chart-preview-wrapper"
-              :style="{ backgroundColor: editPreviewTheme === 'dark' ? '#0f172a' : '#ffffff', border: editPreviewTheme === 'dark' ? '1px solid #1e293b' : '1px solid #e5e6eb' }"
-            >
-              <div ref="editChartRef" class="edit-chart-sandbox"></div>
-              <div v-if="editChartError" class="chart-error-msg">
-                <span>等待有效 JSON 输入...</span>
-              </div>
-            </div>
-            
-            <!-- Background preview -->
-            <div v-else-if="materialForm.category === 'background' || materialForm.category === 'image'" class="edit-bg-preview" :style="editBackgroundStyle">
-              <div v-if="!materialForm.thumbnail && !materialForm.config_data?.image" class="color-text-indicator">
-                背景颜色: {{ materialForm.config_data?.color || '#000000' }}
-              </div>
-            </div>
-            
-            <!-- GeoJSON or raw config -->
-            <div v-else class="edit-raw-preview">
-              <pre class="json-code-box"><code>{{ editGeoJsonPreviewText }}</code></pre>
-            </div>
-          </div>
-          <div class="preview-footer">
-            <a-button type="secondary" size="small" long @click="forceUpdatePreview">手动刷新渲染</a-button>
-          </div>
-        </div>
+        <MaterialPreviewBox
+          ref="previewBoxRef"
+          :category="materialForm.category"
+          :thumbnail="materialForm.thumbnail"
+          :configJsonStr="configJsonStr"
+          :configData="materialForm.config_data"
+          :geoJsonMap="currentGeoJsonMap"
+          :geoJsonMaterials="allAvailableMapMaterials"
+          @detect-subcategory="handleDetectSubcategory"
+          @validation-error="handleValidationError"
+        />
       </a-col>
     </a-row>
   </a-modal>
@@ -224,13 +225,14 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, watch, onMounted } from 'vue'
-import { Message } from '@arco-design/web-vue'
-import { IconUpload } from '@arco-design/web-vue/es/icon'
+import { Message, Modal } from '@arco-design/web-vue'
+import { IconUpload, IconImage, IconPlus, IconDelete } from '@arco-design/web-vue/es/icon'
 import { 
   createOfficialMaterial, updateOfficialMaterial, getOfficialMaterials, uploadFile, deleteFile
 } from '../api/material'
 import { resolveImageUrl } from '../utils'
-import * as echarts from 'echarts'
+import MaterialPreviewBox from './MaterialPreviewBox.vue'
+import MaterialGeoJsonEditor from './MaterialGeoJsonEditor.vue'
 
 const props = defineProps({
   visible: {
@@ -255,8 +257,12 @@ const visible = computed({
 })
 
 const materialFormRef = ref()
+const pendingFile = ref<File | null>(null)
+const localPreviewUrl = ref<string>('')
 const uploading = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
+const previewBoxRef = ref<any>(null)
+const jsonTextareaRef = ref<any>(null)
 
 const materialForm = reactive({
   id: undefined,
@@ -274,12 +280,6 @@ const formRules = {
   name: [{ required: true, message: '请输入素材模版名称' }],
   category: [{ required: true, message: '请选择品类大类' }]
 }
-
-// Live preview states and logic inside edit dialog
-const editChartRef = ref<HTMLDivElement | null>(null)
-const editChartError = ref(false)
-let editChartInstance: any = null
-let editRegisteredMaps: string[] = [] // track registered map names for this edit session
 
 // Background and Image form fields options mapping
 const bgOptions = reactive({
@@ -332,20 +332,36 @@ const chartTypes = [
   { value: 'other', label: '其它图表' }
 ]
 
-function getSubcategoryLabel(val: string): string {
-  const found = chartTypes.find(t => t.value === val)
-  return found ? found.label : val
-}
-
 const selectedTags = ref<string[]>([])
-const associatedGeoJsonId = ref<number[] | number | undefined>(undefined)
+const geoJsonMapEntries = ref<Array<{ mapName: string; sourceType: 'geojson' | 'image'; materialId: number | undefined }>>([])
 const geoJsonMaterials = ref<any[]>([])
+const imageMaterials = ref<any[]>([])
+const imageAndSvgMaterials = ref<any[]>([])
 const isMapChart = ref(false)
 
-// GeoJSON variables & helpers
+const allAvailableMapMaterials = computed(() => {
+  return [...geoJsonMaterials.value, ...imageMaterials.value]
+})
+
+// GeoJSON subcomponent bound variables
 const geoJsonImportMode = ref<'upload' | 'edit'>('upload')
-const geoJsonFileInputRef = ref<HTMLInputElement | null>(null)
 const uploadedGeoJsonFileInfo = ref<{ name: string; size: string } | null>(null)
+
+// ECharts option image popover variables
+const imageSearchKeyword = ref('')
+const imagePage = ref(1)
+const imageTotal = ref(0)
+
+// Compute record map for PreviewBox
+const currentGeoJsonMap = computed(() => {
+  const obj: Record<string, number> = {}
+  for (const entry of geoJsonMapEntries.value) {
+    if (entry.mapName.trim() && entry.materialId) {
+      obj[entry.mapName.trim()] = entry.materialId
+    }
+  }
+  return obj
+})
 
 function formatBytes(bytes: number, decimals = 2) {
   if (!bytes) return '0 Bytes'
@@ -356,158 +372,166 @@ function formatBytes(bytes: number, decimals = 2) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
 }
 
-function triggerGeoJsonFileInput() {
-  if (geoJsonFileInputRef.value) {
-    geoJsonFileInputRef.value.click()
-  }
-}
-
-function handleGeoJsonFileChange(e: any) {
-  const file = e.target.files[0]
-  if (!file) return
-  processGeoJsonFile(file)
-}
-
-function handleGeoJsonFileDrop(e: DragEvent) {
-  const file = e.dataTransfer?.files?.[0]
-  if (!file) return
-  processGeoJsonFile(file)
-}
-
-function processGeoJsonFile(file: File) {
-  if (!file.name.endsWith('.json')) {
-    Message.error('仅支持上传 .json 格式的文件')
-    return
-  }
-
-  const reader = new FileReader()
-  reader.onload = (event: any) => {
-    const text = event.target.result
-    try {
-      const parsed = JSON.parse(text)
-      configJsonStr.value = JSON.stringify(parsed, null, 2)
-      jsonSyntaxError.value = ''
-      uploadedGeoJsonFileInfo.value = {
-        name: file.name,
-        size: formatBytes(file.size)
-      }
-      Message.success('JSON文件解析并验证成功')
-      updateEditPreview()
-    } catch (err: any) {
-      jsonSyntaxError.value = 'JSON 规范校验失败: ' + err.message
-      Message.error('文件不是合法的 JSON 格式')
-      configJsonStr.value = ''
-      uploadedGeoJsonFileInfo.value = null
-    }
-  }
-  reader.onerror = () => {
-    Message.error('文件读取失败')
-  }
-  reader.readAsText(file)
-}
-
-function clearUploadedGeoJson() {
-  configJsonStr.value = ''
-  jsonSyntaxError.value = ''
-  uploadedGeoJsonFileInfo.value = null
-  if (geoJsonFileInputRef.value) {
-    geoJsonFileInputRef.value.value = ''
-  }
-}
-
-function validatePasteJson() {
-  if (!configJsonStr.value.trim()) {
-    jsonSyntaxError.value = ''
-    return
-  }
-  try {
-    JSON.parse(configJsonStr.value)
-    jsonSyntaxError.value = ''
-    debouncedUpdatePreview()
-  } catch (err: any) {
-    jsonSyntaxError.value = 'JSON 规范校验失败: ' + err.message
-  }
-}
-
-function formatGeoJsonString() {
-  try {
-    const parsed = JSON.parse(configJsonStr.value)
-    configJsonStr.value = JSON.stringify(parsed, null, 2)
-    jsonSyntaxError.value = ''
-    autoDetectSubcategory(parsed)
-  } catch (e: any) {
-    jsonSyntaxError.value = '格式化失败 (不是合法的 JSON): ' + e.message
-  }
-}
-
-const editGeoJsonPreviewText = computed(() => {
-  if (materialForm.category !== 'geojson') return configJsonStr.value || '{}'
-  if (!configJsonStr.value) return '{}'
-  if (configJsonStr.value.length > 5000) {
-    return configJsonStr.value.slice(0, 5000) + '\n\n... (地图数据过长，已截断显示，全部内容可在保存后查看) ...'
-  }
-  return configJsonStr.value
-})
-
-async function loadGeoJsonData(configData: any): Promise<any> {
-  if (!configData) return null
-  if (configData.url) {
-    try {
-      const res = await fetch(resolveImageUrl(configData.url))
-      if (res.ok) {
-        return await res.json()
-      }
-      throw new Error(`HTTP ${res.status}`)
-    } catch (e: any) {
-      console.error('Failed to fetch GeoJSON from URL:', e)
-      return null
-    }
-  }
-  return configData
-}
-
 async function loadGeoJsonMaterials() {
   try {
-    const res: any = await getOfficialMaterials('geojson')
-    geoJsonMaterials.value = res || []
+    const res: any = await getOfficialMaterials({
+      category: 'geojson',
+      page: 1,
+      page_size: 100
+    })
+    geoJsonMaterials.value = res.items || []
   } catch (e) {
     console.error('Failed to load GeoJSON materials:', e)
   }
 }
 
-function handleGeoJsonAssociationChange(val: any) {
+async function handleGeoJsonSearch(searchText: string) {
   try {
-    const parsed = parseJsObject(configJsonStr.value)
-    if (val) {
-      parsed._geoJsonId = val
-    } else {
-      delete parsed._geoJsonId
-    }
-    configJsonStr.value = JSON.stringify(parsed, null, 2)
-    updateEditPreview()
-  } catch (e) {
-    // Ignore invalid JSON edits
-  }
-}
-
-function findMapName(option: any): string | null {
-  if (!option) return null
-  if (option.geo && option.geo.map) return option.geo.map
-  if (option.series) {
-    const list = Array.isArray(option.series) ? option.series : [option.series]
-    for (const s of list) {
-      if ((s?.type === 'map' || s?.type === 'map3D') && s.map) {
-        return s.map
+    const res: any = await getOfficialMaterials({
+      category: 'geojson',
+      name: searchText || undefined,
+      page: 1,
+      page_size: 30
+    })
+    const items = res.items || []
+    // Merge search results with existing options so already selected items don't lose their label
+    const merged = [...geoJsonMaterials.value]
+    for (const item of items) {
+      if (!merged.some(m => m.id === item.id)) {
+        merged.push(item)
       }
     }
+    geoJsonMaterials.value = merged
+  } catch (e) {
+    console.error('Failed to search GeoJSON materials:', e)
   }
-  return null
 }
 
-const editPreviewTheme = ref<'dark' | 'light'>('dark')
+async function loadImageAndSvgMaterials() {
+  try {
+    const res: any = await getOfficialMaterials({
+      category: 'image',
+      name: imageSearchKeyword.value || undefined,
+      page: imagePage.value,
+      page_size: 12
+    })
+    imageAndSvgMaterials.value = res.items || []
+    imageTotal.value = res.total || 0
+  } catch (e) {
+    console.error('Failed to load image materials:', e)
+  }
+}
 
-function handleEditThemeChange() {
-  updateEditPreview()
+function handleImageSearch() {
+  imagePage.value = 1
+  loadImageAndSvgMaterials()
+}
+
+function handleImageSearchClear() {
+  imageSearchKeyword.value = ''
+  handleImageSearch()
+}
+
+function handleImagePageChange(page: number) {
+  imagePage.value = page
+  loadImageAndSvgMaterials()
+}
+
+async function loadImageMaterials() {
+  try {
+    const res: any = await getOfficialMaterials({
+      category: 'image',
+      page: 1,
+      page_size: 100
+    })
+    imageMaterials.value = res.items || []
+  } catch (e) {
+    console.error('Failed to load image materials:', e)
+  }
+}
+
+async function handleImageMaterialSearch(searchText: string) {
+  try {
+    const res: any = await getOfficialMaterials({
+      category: 'image',
+      name: searchText || undefined,
+      page: 1,
+      page_size: 30
+    })
+    const items = res.items || []
+    const merged = [...imageMaterials.value]
+    for (const item of items) {
+      if (!merged.some(m => m.id === item.id)) {
+        merged.push(item)
+      }
+    }
+    imageMaterials.value = merged
+  } catch (e) {
+    console.error('Failed to search image materials:', e)
+  }
+}
+
+function getMapOptions(sourceType: 'geojson' | 'image') {
+  return sourceType === 'geojson' ? geoJsonMaterials.value : imageMaterials.value
+}
+
+function handleMapMaterialSearch(searchText: string, sourceType: 'geojson' | 'image') {
+  if (sourceType === 'geojson') {
+    handleGeoJsonSearch(searchText)
+  } else {
+    handleImageMaterialSearch(searchText)
+  }
+}
+
+function addGeoJsonEntry() {
+  geoJsonMapEntries.value.push({ mapName: '', sourceType: 'geojson', materialId: undefined })
+}
+
+function removeGeoJsonEntry(index: number) {
+  const entry = geoJsonMapEntries.value[index]
+  if (entry && entry.mapName && previewBoxRef.value) {
+    previewBoxRef.value.unregisterMap(entry.mapName)
+  }
+  geoJsonMapEntries.value.splice(index, 1)
+}
+
+function syncGeoJsonMap() {
+  // Triggers ECharts updates in previewBoxRef via watcher on currentGeoJsonMap
+}
+
+function insertAssetUrl(asset: any) {
+  const url = asset.thumbnail
+  if (!url) return
+
+  const formattedUrl = url.startsWith('/') ? url : '/' + url
+  
+  const textarea = jsonTextareaRef.value?.$el?.querySelector('textarea')
+  if (textarea) {
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const text = configJsonStr.value
+    configJsonStr.value = text.substring(0, start) + formattedUrl + text.substring(end)
+    
+    nextTick(() => {
+      textarea.focus()
+      textarea.setSelectionRange(start + formattedUrl.length, start + formattedUrl.length)
+      if (previewBoxRef.value) {
+        previewBoxRef.value.updateEditPreview()
+      }
+    })
+  } else {
+    configJsonStr.value += formattedUrl
+  }
+}
+
+
+
+function handleDetectSubcategory(val: string) {
+  materialForm.subcategory = val
+}
+
+function handleValidationError(msg: string) {
+  jsonSyntaxError.value = msg
 }
 
 function updateBgOptions() {
@@ -533,12 +557,18 @@ function handleCategoryChange(val: any) {
   selectedTags.value = []
   bgOptions.color = '#0b132b'
   bgOptions.image = ''
-  editPreviewTheme.value = 'dark'
   materialForm.thumbnail = ''
   materialForm.subcategory = ''
   materialForm.config_data = null
   isMapChart.value = false
+  geoJsonMapEntries.value = []
   
+  pendingFile.value = null
+  if (localPreviewUrl.value) {
+    URL.revokeObjectURL(localPreviewUrl.value)
+    localPreviewUrl.value = ''
+  }
+
   if (val === 'echarts') {
     materialForm.subcategory = 'line'
     configJsonStr.value = JSON.stringify({
@@ -559,6 +589,11 @@ function handleCategoryChange(val: any) {
 }
 
 function handleImageRemove() {
+  pendingFile.value = null
+  if (localPreviewUrl.value) {
+    URL.revokeObjectURL(localPreviewUrl.value)
+    localPreviewUrl.value = ''
+  }
   materialForm.thumbnail = ''
   if (materialForm.category === 'background') {
     bgOptions.image = ''
@@ -566,285 +601,42 @@ function handleImageRemove() {
   }
 }
 
-function formatHexColor(color: string | null | undefined): string {
-  if (!color) return '#0b132b'
-  const trimmed = color.trim()
-  if (trimmed.startsWith('#')) return trimmed
-  if (/^[0-9a-fA-F]{3,8}$/.test(trimmed)) {
-    return `#${trimmed}`
-  }
-  return trimmed
-}
-
-const editBackgroundStyle = computed(() => {
-  const bgImage = resolveImageUrl(materialForm.thumbnail)
-  const color = materialForm.category === 'background' ? formatHexColor(bgOptions.color) : '#0f172a'
-  
-  return {
-    backgroundColor: color,
-    backgroundImage: bgImage ? `url(${bgImage})` : 'none',
-    backgroundRepeat: 'no-repeat',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    width: '100%',
-    height: '350px',
-    borderRadius: '4px',
-    border: '1px solid #e5e6eb',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  }
-})
-
-async function updateEditPreview() {
-  if ((materialForm.category !== 'echarts' && materialForm.category !== 'geojson') || !editChartRef.value) return
-  try {
-    let parsed: any = null
-    editChartError.value = false
-    
-    if (materialForm.category === 'geojson') {
-      if (!configJsonStr.value || !configJsonStr.value.trim() || configJsonStr.value === '{}' || configJsonStr.value === '正在加载 GeoJSON 地图数据...') {
-        return
-      }
-      const geoJsonData = JSON.parse(configJsonStr.value)
-      const mapName = 'edit_preview_map_' + Date.now()
-      echarts.registerMap(mapName, geoJsonData)
-      editRegisteredMaps.push(mapName)
-      parsed = {
-        backgroundColor: 'transparent',
-        tooltip: {
-          show: true,
-          trigger: 'item',
-          formatter: '{b}'
-        },
-        series: [{
-          name: '地图预览',
-          type: 'map',
-          map: mapName,
-          roam: true,
-          label: {
-            show: true,
-            color: '#e2e8f0',
-            fontSize: 10
-          },
-          itemStyle: {
-            areaColor: '#1e293b',
-            borderColor: '#38bdf8',
-            borderWidth: 1
-          },
-          emphasis: {
-            label: {
-              show: true,
-              color: '#ffffff'
-            },
-            itemStyle: {
-              areaColor: '#0ea5e9'
-            }
-          }
-        }]
-      }
-    } else {
-      parsed = parseJsObject(configJsonStr.value)
-      
-      // Auto-detect ECharts subcategory
-      autoDetectSubcategory(parsed)
-
-      // Sync associatedGeoJsonId from parsed option
-      if (JSON.stringify(parsed._geoJsonId) !== JSON.stringify(associatedGeoJsonId.value)) {
-        associatedGeoJsonId.value = parsed._geoJsonId
-      }
-
-      // Check if isMapChart is true but subcategory is not map/map3D
-      if (isMapChart.value && materialForm.subcategory !== 'map' && materialForm.subcategory !== 'map3D') {
-        jsonSyntaxError.value = `提示：当前图表类型识别为 [${getSubcategoryLabel(materialForm.subcategory)}]，地图图表必须包含 map 或 map3D 类型的 series`
-      } else {
-        if (jsonSyntaxError.value && jsonSyntaxError.value.includes('提示：当前图表类型识别为')) {
-          jsonSyntaxError.value = ''
-        }
-      }
-
-      // Register map if _geoJsonId exists
-      if (parsed._geoJsonId) {
-        const ids = Array.isArray(parsed._geoJsonId) ? parsed._geoJsonId : [parsed._geoJsonId]
-        for (const id of ids) {
-          const geoJsonMaterial = geoJsonMaterials.value.find(item => item.id === id)
-          if (geoJsonMaterial && geoJsonMaterial.config_data) {
-            const geoJsonData = await loadGeoJsonData(geoJsonMaterial.config_data)
-            if (geoJsonData) {
-              if (ids.length === 1) {
-                const mapName = findMapName(parsed) || 'custom_map'
-                echarts.registerMap(mapName, geoJsonData)
-                editRegisteredMaps.push(mapName)
-              }
-              const idMapName = `map_${id}`
-              echarts.registerMap(idMapName, geoJsonData)
-              editRegisteredMaps.push(idMapName)
-              if (geoJsonMaterial.name) {
-                echarts.registerMap(geoJsonMaterial.name, geoJsonData)
-                editRegisteredMaps.push(geoJsonMaterial.name)
-              }
-              if (geoJsonMaterial.config_data.filename) {
-                const baseName = geoJsonMaterial.config_data.filename.replace(/\.json$/i, '')
-                echarts.registerMap(baseName, geoJsonData)
-                editRegisteredMaps.push(baseName)
-              }
-            }
-          }
-        }
-      }
-    }
-    
-    if (editChartInstance) {
-      editChartInstance.dispose()
-      editChartInstance = null
-    }
-    const currentTheme = editPreviewTheme.value === 'dark' ? 'dark' : undefined
-    editChartInstance = echarts.init(editChartRef.value, currentTheme)
-    
-    editChartInstance.setOption(parsed, true)
-    nextTick(() => {
-      if (editChartInstance) {
-        editChartInstance.resize()
-      }
-    })
-  } catch (e) {
-    editChartError.value = true
-  }
-}
-
-let debounceTimer: any = null
-function debouncedUpdatePreview() {
-  if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
-    updateEditPreview()
-  }, 500)
-}
-
-function forceUpdatePreview() {
-  try {
-    if (materialForm.category === 'geojson') {
-      const parsed = JSON.parse(configJsonStr.value)
-      configJsonStr.value = JSON.stringify(parsed, null, 2)
-      jsonSyntaxError.value = ''
-    } else {
-      const parsed = parseJsObject(configJsonStr.value)
-      configJsonStr.value = JSON.stringify(parsed, null, 2)
-      jsonSyntaxError.value = ''
-    }
-    updateEditPreview()
-  } catch (e: any) {
-    jsonSyntaxError.value = '语法有误: ' + e.message
-    editChartError.value = true
-  }
-}
-
-function handleEditModalClose() {
-  if (editChartInstance) {
-    editChartInstance.dispose()
-    editChartInstance = null
-  }
-  // Clear all registered maps to avoid stale global ECharts cache
-  const emptyGeoJson = { type: 'FeatureCollection', features: [] } as any
-  for (const name of editRegisteredMaps) {
-    try { echarts.registerMap(name, emptyGeoJson) } catch (_) {}
-  }
-  editRegisteredMaps = []
-  editChartError.value = false
-}
-
-// Media upload actions
-async function handleFileUpload(e: any) {
+function handleFileUpload(e: any) {
   const file = e.target.files[0]
   if (!file) return
-  const formData = new FormData()
-  formData.append('file', file)
+
+  pendingFile.value = file
+  if (localPreviewUrl.value) {
+    URL.revokeObjectURL(localPreviewUrl.value)
+  }
   
-  uploading.value = true
-  try {
-    const res: any = await uploadFile(formData, materialForm.category === 'background' ? 'backgrounds' : 'thumbnails')
-    if (res.url) {
-      materialForm.thumbnail = res.url
-      // Auto build config data object for backgrounds
-      if (materialForm.category === 'background') {
-        bgOptions.image = res.url
-        materialForm.config_data = { color: bgOptions.color, image: res.url }
-      }
-      Message.success('缩略图上传成功')
-    }
-  } catch (err) {
-    Message.error('上传图片失败')
-  } finally {
-    uploading.value = false
+  localPreviewUrl.value = URL.createObjectURL(file)
+  materialForm.thumbnail = localPreviewUrl.value
+  
+  if (materialForm.category === 'background') {
+    bgOptions.image = localPreviewUrl.value
+    materialForm.config_data = { color: bgOptions.color, image: localPreviewUrl.value }
   }
 }
 
-// Auto-detect ECharts subcategory based on series type / options
-function autoDetectSubcategory(parsed: any) {
-  if (materialForm.category !== 'echarts') return
-  
-  let detectedType = ''
-  if (parsed) {
-    if (parsed.globe) {
-      detectedType = 'globe'
-    } else if (parsed.calendar) {
-      detectedType = 'calendar'
-    } else if (parsed.parallel) {
-      detectedType = 'parallel'
-    } else if (parsed.graphic) {
-      detectedType = 'graphic'
-    } else if (parsed.series) {
-      const seriesList = Array.isArray(parsed.series) ? parsed.series : [parsed.series]
-      if (seriesList.length > 0 && seriesList[0] && seriesList[0].type) {
-        detectedType = seriesList[0].type
-      }
-    }
-  }
-
-  if (detectedType) {
-    if (detectedType === 'effectScatter') {
-      detectedType = 'scatter'
-    } else if (detectedType === 'k') {
-      detectedType = 'candlestick'
-    }
-    
-    const chartTypeValues = [
-      'line', 'bar', 'pie', 'scatter', 'map', 'candlestick', 'radar', 'boxplot',
-      'heatmap', 'graph', 'lines', 'tree', 'treemap', 'sunburst', 'parallel',
-      'sankey', 'funnel', 'gauge', 'pictorialBar', 'themeRiver', 'calendar',
-      'matrix', 'chord', 'custom', 'dataset', 'dataZoom', 'graphic', 'richText',
-      'globe', 'bar3D', 'scatter3D', 'surface', 'map3D', 'lines3D', 'line3D',
-      'scatterGL', 'linesGL', 'flowGL', 'graphGL'
-    ]
-    
-    if (chartTypeValues.includes(detectedType)) {
-      materialForm.subcategory = detectedType
-    } else {
-      materialForm.subcategory = 'other'
-    }
-  } else {
-    materialForm.subcategory = 'other'
-  }
-}
-
-// Parse JS Object / JSON string safely
 function parseJsObject(str: string): any {
   if (!str || !str.trim()) return {}
   return new Function(`return (${str})`)()
 }
 
-// Format config JSON string
 function formatJsonString() {
   try {
     const parsed = parseJsObject(configJsonStr.value)
     configJsonStr.value = JSON.stringify(parsed, null, 2)
     jsonSyntaxError.value = ''
-    autoDetectSubcategory(parsed)
+    if (previewBoxRef.value) {
+      previewBoxRef.value.updateEditPreview()
+    }
   } catch (e: any) {
     jsonSyntaxError.value = '格式化失败: ' + e.message
   }
 }
 
-// Handle Shift+Alt+F keyboard shortcut for formatting JSON
 function handleJsonEditorKeydown(e: KeyboardEvent) {
   if (e.shiftKey && e.altKey && (e.key === 'f' || e.key === 'F')) {
     e.preventDefault()
@@ -857,46 +649,47 @@ function handleIsMapChartChange(val: any) {
     if (materialForm.subcategory !== 'map' && materialForm.subcategory !== 'map3D') {
       materialForm.subcategory = 'map'
     }
-    try {
-      const parsed = parseJsObject(configJsonStr.value)
-      const hasMap = parsed.series && (Array.isArray(parsed.series) ? parsed.series : [parsed.series]).some((s: any) => s.type === 'map' || s.type === 'map3D')
-      const hasGeo = parsed.geo && parsed.geo.map
-      const hasGlobe = parsed.globe
-      if (!hasMap && !hasGeo && !hasGlobe) {
-        const mapTemplate: any = {
-          title: { text: "新地图图表", textStyle: { color: "#fff" } },
-          tooltip: { show: true, trigger: "item" },
-          series: [
-            {
-              name: "地图数据",
-              type: "map",
-              map: "custom_map",
-              roam: true,
-              data: []
-            }
-          ]
-        }
-        if (associatedGeoJsonId.value) {
-          mapTemplate._geoJsonId = associatedGeoJsonId.value
-        }
-        configJsonStr.value = JSON.stringify(mapTemplate, null, 2)
-      }
-      updateEditPreview()
-    } catch (e) {
-      // Ignore invalid JSON edits
+    if (geoJsonMapEntries.value.length === 0) {
+      geoJsonMapEntries.value.push({ mapName: 'custom_map', sourceType: 'geojson', materialId: undefined })
     }
   } else {
-    associatedGeoJsonId.value = []
-    try {
-      const parsed = parseJsObject(configJsonStr.value)
-      delete parsed._geoJsonId
-      configJsonStr.value = JSON.stringify(parsed, null, 2)
-      autoDetectSubcategory(parsed)
-      updateEditPreview()
-    } catch (e) {
-      // Ignore
+    geoJsonMapEntries.value = []
+    if (previewBoxRef.value) {
+      previewBoxRef.value.cleanRegisteredMaps()
     }
   }
+}
+
+function confirmRestoreDefaultMapOption() {
+  Modal.confirm({
+    title: '确认还原地图默认 Option？',
+    content: '此操作将用标准的 ECharts 地图渲染模板覆盖您当前的配置，已编辑的内容将会丢失。是否继续？',
+    okText: '确认还原',
+    cancelText: '取消',
+    onOk: () => {
+      const firstEntry = geoJsonMapEntries.value[0]
+      const mapName = firstEntry?.mapName || 'custom_map'
+      const mapTemplate = {
+        title: { text: "地图图表", textStyle: { color: "#fff" } },
+        tooltip: { show: true, trigger: "item", formatter: "{b}" },
+        series: [
+          {
+            name: "地图数据",
+            type: "map",
+            map: mapName,
+            roam: true,
+            data: []
+          }
+        ]
+      }
+      configJsonStr.value = JSON.stringify(mapTemplate, null, 2)
+      nextTick(() => {
+        if (previewBoxRef.value) {
+          previewBoxRef.value.updateEditPreview()
+        }
+      })
+    }
+  })
 }
 
 async function submitForm(done: any) {
@@ -904,6 +697,39 @@ async function submitForm(done: any) {
   const validationRes = await materialFormRef.value.validate()
   if (validationRes) {
     return done(false)
+  }
+
+  // Block saving if there is an ECharts options/JSON syntax/rendering error
+  if (jsonSyntaxError.value) {
+    Message.error('当前配置选项存在语法或渲染错误，无法保存！请修正后再提交。')
+    return done(false)
+  }
+
+  // 1. Upload thumbnail if it's pending before database save
+  if (pendingFile.value) {
+    const formData = new FormData()
+    formData.append('file', pendingFile.value)
+    
+    uploading.value = true
+    try {
+      const res: any = await uploadFile(formData, materialForm.category === 'background' ? 'backgrounds' : 'thumbnails')
+      if (res.url) {
+        materialForm.thumbnail = res.url
+        pendingFile.value = null
+        if (localPreviewUrl.value) {
+          URL.revokeObjectURL(localPreviewUrl.value)
+          localPreviewUrl.value = ''
+        }
+      } else {
+        throw new Error('未返回有效文件URL')
+      }
+    } catch (err: any) {
+      Message.error('上传图片失败: ' + err.message)
+      uploading.value = false
+      return done(false)
+    } finally {
+      uploading.value = false
+    }
   }
 
   // Parse option JSON validation
@@ -915,26 +741,58 @@ async function submitForm(done: any) {
     try {
       const parsed = parseJsObject(configJsonStr.value)
       
-      // Auto-detect ECharts subcategory
-      autoDetectSubcategory(parsed)
-
       // Enforce map validation if isMapChart is checked
       if (isMapChart.value) {
+        // 1. Verify ECharts subcategory and options elements
+        const hasMapSeries = parsed.series && (Array.isArray(parsed.series) ? parsed.series : [parsed.series]).some((s: any) => s && (s.type === 'map' || s.type === 'map3D'))
+        const hasGeoComponent = parsed.geo && parsed.geo.map
+        const hasGlobeComponent = parsed.globe
+        
+        if (!hasMapSeries && !hasGeoComponent && !hasGlobeComponent) {
+          jsonSyntaxError.value = "配置选项中未找到合法的地图系列 (请确保 series 类型为 map / map3D，或者包含 geo.map 或 globe 配置)"
+          Message.error('表单校验失败：勾选了地图类型，但配置选项未包含有效的地图系列(map/map3D)或 geo.map/globe 配置')
+          return done(false)
+        }
+        
         if (materialForm.subcategory !== 'map' && materialForm.subcategory !== 'map3D') {
-          jsonSyntaxError.value = `配置不是合法的地图图表类型 (当前自动识别为: ${getSubcategoryLabel(materialForm.subcategory)})，请确认 ECharts Option 的 series.type 为 'map' 或 'map3D'`
-          Message.error('表单校验失败：勾选了地图类型，但配置选项未被识别为地图 (请确保包含 map 或 map3D 类型的 series)')
+          jsonSyntaxError.value = `配置不是合法的地图图表类型，请确认 ECharts Option 的 series.type 为 'map' 或 'map3D'`
+          Message.error('表单校验失败：勾选了地图类型，但配置选项未被识别为地图')
           return done(false)
         }
-        if (!associatedGeoJsonId.value || (Array.isArray(associatedGeoJsonId.value) && associatedGeoJsonId.value.length === 0)) {
-          Message.error('表单校验失败：请选择关联的 GeoJSON 地图数据')
+        
+        // 2. Validate mapping entries
+        if (geoJsonMapEntries.value.length === 0) {
+          Message.error('表单校验失败：勾选了地图类型，请至少添加一个关联的 GeoJSON 地图数据')
           return done(false)
         }
-        parsed._geoJsonId = associatedGeoJsonId.value
+
+        const geoMapObj: Record<string, number> = {}
+        for (const entry of geoJsonMapEntries.value) {
+          if (!entry.mapName || !entry.mapName.trim()) {
+            Message.error('表单校验失败：关联地图数据中的注册名（Key）不能为空')
+            return done(false)
+          }
+          if (!entry.materialId) {
+            Message.error(`表单校验失败：请为地图注册名 "${entry.mapName}" 选择对应的 GeoJSON 地图数据`)
+            return done(false)
+          }
+          if (geoMapObj[entry.mapName.trim()]) {
+            Message.error(`表单校验失败：地图注册名 "${entry.mapName}" 重复，请修改为唯一名称`)
+            return done(false)
+          }
+          geoMapObj[entry.mapName.trim()] = entry.materialId
+        }
+        
+        parsed._geoJsonMap = geoMapObj
+        if (parsed._geoJsonId) {
+          delete parsed._geoJsonId
+        }
       } else {
         if (materialForm.subcategory === 'map' || materialForm.subcategory === 'map3D') {
           Message.warning('检测到您的配置为地图图表，建议勾选“是否为地图图表”并关联 GeoJSON 地图数据，否则地图可能无法渲染。')
         }
         delete parsed._geoJsonId
+        delete parsed._geoJsonMap
       }
 
       materialForm.config_data = parsed
@@ -1017,6 +875,7 @@ async function submitForm(done: any) {
         }
       }
     }
+
     emit('success')
     visible.value = false
     done(true)
@@ -1040,19 +899,18 @@ function resetForm() {
   bgOptions.color = '#0b132b'
   bgOptions.image = ''
   selectedTags.value = []
-  associatedGeoJsonId.value = []
-  editPreviewTheme.value = 'dark'
-  geoJsonImportMode.value = 'upload'
-  uploadedGeoJsonFileInfo.value = null
+  geoJsonMapEntries.value = []
   isMapChart.value = false
 }
 
 function initForm() {
+  pendingFile.value = null
+  if (localPreviewUrl.value) {
+    URL.revokeObjectURL(localPreviewUrl.value)
+    localPreviewUrl.value = ''
+  }
   resetForm()
   if (props.type === 'create') {
-    editPreviewTheme.value = 'dark'
-    geoJsonImportMode.value = 'upload'
-    uploadedGeoJsonFileInfo.value = null
     isMapChart.value = false
     configJsonStr.value = JSON.stringify({
       title: { text: "新折线图", textStyle: { color: "#fff" } },
@@ -1073,14 +931,46 @@ function initForm() {
     
     if (row.category === 'echarts') {
       configJsonStr.value = JSON.stringify(row.config_data || {}, null, 2)
-      if (row.subcategory === 'map' || row.subcategory === 'map3D' || row.config_data?._geoJsonId) {
-        isMapChart.value = true
+      
+      const loadNeededData = async () => {
+        if (geoJsonMaterials.value.length === 0) {
+          await loadGeoJsonMaterials()
+        }
+        if (imageMaterials.value.length === 0) {
+          await loadImageMaterials()
+        }
+        
+        const rawMap = row.config_data?._geoJsonMap
         const rawId = row.config_data?._geoJsonId
-        associatedGeoJsonId.value = Array.isArray(rawId) ? rawId : (rawId ? [rawId] : [])
-      } else {
-        isMapChart.value = false
-        associatedGeoJsonId.value = []
+        if (rawMap && typeof rawMap === 'object') {
+          isMapChart.value = true
+          geoJsonMapEntries.value = Object.entries(rawMap).map(([key, val]) => {
+            const mId = Number(val)
+            const isGeo = geoJsonMaterials.value.some(item => item.id === mId)
+            return {
+              mapName: key,
+              sourceType: isGeo ? 'geojson' : 'image',
+              materialId: mId
+            }
+          })
+        } else if (rawId) {
+          isMapChart.value = true
+          const ids = Array.isArray(rawId) ? rawId : [rawId]
+          geoJsonMapEntries.value = ids.map(id => {
+            const material = geoJsonMaterials.value.find(item => item.id === id)
+            const isGeo = material ? true : false
+            return {
+              mapName: material?.name || `map_${id}`,
+              sourceType: isGeo ? 'geojson' : 'image',
+              materialId: id
+            }
+          })
+        } else {
+          isMapChart.value = false
+          geoJsonMapEntries.value = []
+        }
       }
+      loadNeededData()
     } else if (row.category === 'geojson') {
       geoJsonImportMode.value = 'upload'
       if (row.config_data && row.config_data.url) {
@@ -1096,7 +986,6 @@ function initForm() {
           })
           .then(data => {
             configJsonStr.value = JSON.stringify(data, null, 2)
-            updateEditPreview()
           })
           .catch(err => {
             configJsonStr.value = ''
@@ -1113,10 +1002,14 @@ function initForm() {
       selectedTags.value = row.config_data?.tags ? row.config_data.tags.split(',') : []
     }
   }
-  
-  nextTick(() => {
-    updateEditPreview()
-  })
+}
+
+function handleEditModalClose() {
+  pendingFile.value = null
+  if (localPreviewUrl.value) {
+    URL.revokeObjectURL(localPreviewUrl.value)
+    localPreviewUrl.value = ''
+  }
 }
 
 // Watch modal state and trigger preview initialization
@@ -1131,9 +1024,7 @@ watch(() => props.visible, (newVal) => {
 // Watch category changes (if triggered externally or reactive change)
 watch(() => materialForm.category, (catVal) => {
   if (props.visible && (catVal === 'echarts' || catVal === 'geojson')) {
-    nextTick(() => {
-      updateEditPreview()
-    })
+    // handled by previewBoxRef
   } else {
     handleEditModalClose()
   }
@@ -1141,6 +1032,8 @@ watch(() => materialForm.category, (catVal) => {
 
 onMounted(() => {
   loadGeoJsonMaterials()
+  loadImageMaterials()
+  loadImageAndSvgMaterials()
   if (props.visible) {
     initForm()
   }
@@ -1148,7 +1041,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Modal Form Styles */
 .upload-area {
   display: flex;
   align-items: center;
@@ -1191,169 +1083,101 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-.color-text-indicator {
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: #38bdf8;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-weight: 500;
-  font-family: monospace;
-}
-
-/* Edit Preview Layout Styles */
-.edit-preview-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  border: 1px solid #e5e6eb;
-  border-radius: 4px;
-  padding: 16px;
-  background-color: #f8fafc;
-}
-
-.preview-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-  font-weight: 500;
-  color: #1D2129;
-  margin-bottom: 12px;
-  border-left: 3px solid #165dff;
-  padding-left: 8px;
-}
-
-.preview-body {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.edit-chart-preview-wrapper {
-  width: 100%;
-  height: 350px;
-  background-color: #0f172a;
-  border-radius: 4px;
+.editor-input-wrapper {
   position: relative;
-  border: 1px solid #e5e6eb;
-}
-
-.edit-chart-sandbox {
-  width: 100%;
-  height: 100%;
-}
-
-.chart-error-msg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(15, 23, 42, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #86909c;
-  font-size: 13px;
-}
-
-.edit-bg-preview {
-  width: 100%;
-  height: 350px;
-  border-radius: 4px;
-  border: 1px solid #e5e6eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.edit-raw-preview {
-  width: 100%;
-  height: 350px;
-  background-color: #f8fafc;
-  border-radius: 4px;
-  padding: 12px;
-  overflow: auto;
-  border: 1px solid #e5e6eb;
-}
-
-.preview-footer {
-  margin-top: 12px;
-}
-
-.preview-theme-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-  width: 100%;
-}
-
-.preview-theme-title {
-  font-size: 13px;
-  color: #86909c;
-}
-
-.geojson-upload-zone {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
 }
 
-.upload-trigger-container {
-  border: 1px dashed #e5e6eb;
-  border-radius: 4px;
-  background-color: #f8fafc;
-  padding: 24px;
-  text-align: center;
-  cursor: pointer;
-  transition: border-color 0.2s, background-color 0.2s;
+.insert-asset-bar {
+  display: flex;
+  justify-content: flex-end;
 }
 
-.upload-trigger-container:hover {
+.asset-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px;
+}
+
+.asset-selector-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  border: 1px solid #e5e6eb;
+  border-radius: 4px;
+  padding: 4px;
+  transition: all 0.2s;
+}
+
+.asset-selector-item:hover {
   border-color: #165dff;
   background-color: #f2f3f5;
 }
 
-.upload-icon {
-  font-size: 32px;
-  color: #86909c;
-  margin-bottom: 8px;
+.asset-grid-thumb {
+  width: 70px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 2px;
+  border: 1px solid #e5e6eb;
 }
 
-.upload-text {
-  font-size: 13px;
+.asset-grid-name {
+  font-size: 11px;
   color: #4e5969;
-}
-
-.file-info-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: #e8f3ff;
-  border: 1px solid #bae0ff;
-  border-radius: 4px;
-  padding: 8px 12px;
-  font-size: 13px;
-  color: #1D2129;
-}
-
-.geojson-preview-box {
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   width: 100%;
 }
 
-.code-editor.readonly {
-  opacity: 0.85;
+.asset-grid-empty {
+  grid-column: span 3;
+  color: #86909c;
+  font-size: 12px;
+  text-align: center;
+  padding: 16px 0;
 }
 
-.json-code-box {
-  margin: 0;
-  font-family: monospace;
+.geojson-mapping-container {
+  border: 1px solid #e5e6eb;
+  border-radius: 4px;
+  padding: 12px;
+  background-color: #f8fafc;
+  margin-bottom: 16px;
+}
+
+.geojson-mapping-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 13px;
-  color: #0f172a;
+  font-weight: 500;
+  color: #1d2129;
+  margin-bottom: 8px;
+}
+
+.geojson-mapping-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.geojson-mapping-empty {
+  font-size: 12px;
+  color: #86909c;
+  text-align: center;
+  padding: 8px 0;
 }
 </style>

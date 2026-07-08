@@ -84,9 +84,9 @@ async def get_all_users(
     username: Optional[str] = None,
     nickname: Optional[str] = None,
     status: Optional[str] = None
-) -> list[User]:
+) -> tuple[int, list[User]]:
     """
-    Get all users with basic search filters.
+    Get all users with basic search filters, returning total count and records.
     """
     query = select(User).filter(User.del_flag == "0")
     if username:
@@ -95,10 +95,16 @@ async def get_all_users(
         query = query.filter(User.nickname.like(f"%{nickname}%"))
     if status:
         query = query.filter(User.status == status)
+        
+    # Count total records
+    from sqlalchemy import func
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
     
-    query = query.offset(skip).limit(limit)
+    query = query.order_by(User.id.asc()).offset(skip).limit(limit)
     result = await db.execute(query)
-    return list(result.scalars().all())
+    return total, list(result.scalars().all())
 
 async def delete_user(db: AsyncSession, user_id: int) -> bool:
     """

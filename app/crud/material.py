@@ -9,16 +9,40 @@ async def get_material_by_id(db: AsyncSession, material_id: int) -> Optional[Mat
     result = await db.execute(select(Material).filter(Material.id == material_id, Material.del_flag == "0"))
     return result.scalars().first()
 
-async def get_official_materials(db: AsyncSession, category: Optional[str] = None) -> List[Material]:
-    """Get all official/system materials, optionally filtered by category."""
+async def get_official_materials(
+    db: AsyncSession, 
+    category: Optional[str] = None,
+    name: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 20
+) -> tuple[int, List[Material]]:
+    """Get all official/system materials, optionally filtered by category & name, paginated."""
     query = select(Material).filter(Material.is_official == True, Material.del_flag == "0")
     if category:
         query = query.filter(Material.category == category)
+    if name:
+        query = query.filter(Material.name.like(f"%{name}%"))
+    
+    # Count total records
+    from sqlalchemy import func
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    # Order by ID descending and paginate
+    query = query.order_by(Material.id.desc()).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
-    return list(result.scalars().all())
+    return total, list(result.scalars().all())
 
-async def get_user_materials(db: AsyncSession, user_id: int, category: Optional[str] = None) -> List[Material]:
-    """Get all private DIY materials owned by a specific user."""
+async def get_user_materials(
+    db: AsyncSession, 
+    user_id: int, 
+    category: Optional[str] = None,
+    name: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 20
+) -> tuple[int, List[Material]]:
+    """Get all private DIY materials owned by a specific user, optionally filtered by category & name, paginated."""
     query = select(Material).filter(
         Material.creator_id == user_id,
         Material.is_official == False,
@@ -26,8 +50,19 @@ async def get_user_materials(db: AsyncSession, user_id: int, category: Optional[
     )
     if category:
         query = query.filter(Material.category == category)
+    if name:
+        query = query.filter(Material.name.like(f"%{name}%"))
+        
+    # Count total records
+    from sqlalchemy import func
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    # Order by ID descending and paginate
+    query = query.order_by(Material.id.desc()).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
-    return list(result.scalars().all())
+    return total, list(result.scalars().all())
 
 async def create_material(db: AsyncSession, material_in: MaterialCreate, creator_name: str) -> Material:
     """Create a new material template."""

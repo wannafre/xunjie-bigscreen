@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
 
 from app.core.database import get_db
 from app.api.v1.endpoints.auth import check_permissions
-from app.schemas.role import RoleCreate, RoleUpdate, RoleOut
+from app.schemas.role import RoleCreate, RoleUpdate, RoleOut, RolePaginationOut
 from app.crud import role as crud_role
 
 router = APIRouter()
@@ -26,15 +26,20 @@ async def create_role_endpoint(
         )
     return await crud_role.create_role(db, role_in)
 
-@router.get("/", response_model=List[RoleOut])
+@router.get("/", response_model=RolePaginationOut)
 async def list_roles_endpoint(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页大小"),
+    role_name: Optional[str] = Query(None, description="按名称过滤角色"),
     db: AsyncSession = Depends(get_db),
     current_user = Depends(check_permissions("system:role:list"))
 ):
     """
     Get list of all roles.
     """
-    return await crud_role.get_all_roles(db)
+    skip = (page - 1) * page_size
+    total, items = await crud_role.get_all_roles(db, skip=skip, limit=page_size, role_name=role_name)
+    return {"total": total, "items": items}
 
 @router.get("/{role_id}", response_model=RoleOut)
 async def get_role_endpoint(

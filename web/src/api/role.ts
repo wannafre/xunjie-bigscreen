@@ -1,7 +1,7 @@
 import request from '../utils/request'
 
-export function getRoleList() {
-  return request.get('/role/')
+export function getRoleList(params?: any) {
+  return request.get('/role/', { params })
 }
 
 export function getRole(id: number | string) {

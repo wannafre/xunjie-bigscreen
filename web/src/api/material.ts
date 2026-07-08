@@ -1,11 +1,17 @@
 import request from '../utils/request'
 
-export function getOfficialMaterials(category?: string) {
-  return request.get('/materials/official', { params: { category } })
+export function getOfficialMaterials(categoryOrParams?: string | Record<string, any>) {
+  if (typeof categoryOrParams === 'string') {
+    return request.get('/materials/official', { params: { category: categoryOrParams } })
+  }
+  return request.get('/materials/official', { params: categoryOrParams })
 }
 
-export function getMyMaterials(category?: string) {
-  return request.get('/materials/my', { params: { category } })
+export function getMyMaterials(categoryOrParams?: string | Record<string, any>) {
+  if (typeof categoryOrParams === 'string') {
+    return request.get('/materials/my', { params: { category: categoryOrParams } })
+  }
+  return request.get('/materials/my', { params: categoryOrParams })
 }
 
 export function pullMaterial(officialId: number | string) {

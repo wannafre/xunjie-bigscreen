@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 
 from app.core.database import get_db
 from app.api.v1.endpoints.auth import check_permissions, get_current_user
-from app.schemas.user import UserCreate, UserUpdate, UserOut, UserProfileUpdate, UserPasswordUpdate
+from app.schemas.user import UserCreate, UserUpdate, UserOut, UserProfileUpdate, UserPasswordUpdate, UserPaginationOut
 from app.crud import user as crud_user
 
 router = APIRouter()
@@ -26,10 +26,10 @@ async def create_user_endpoint(
         )
     return await crud_user.create_user(db, user_in)
 
-@router.get("/", response_model=List[UserOut])
+@router.get("/", response_model=UserPaginationOut)
 async def list_users_endpoint(
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页大小"),
     username: Optional[str] = None,
     nickname: Optional[str] = None,
     status: Optional[str] = None,
@@ -39,7 +39,9 @@ async def list_users_endpoint(
     """
     Get users list with optional search filters.
     """
-    return await crud_user.get_all_users(db, skip=skip, limit=limit, username=username, nickname=nickname, status=status)
+    skip = (page - 1) * page_size
+    total, items = await crud_user.get_all_users(db, skip=skip, limit=page_size, username=username, nickname=nickname, status=status)
+    return {"total": total, "items": items}
 
 @router.get("/{user_id}", response_model=UserOut)
 async def get_user_endpoint(

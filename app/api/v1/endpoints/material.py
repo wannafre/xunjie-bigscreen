@@ -4,11 +4,82 @@ from typing import List, Optional
 
 from app.core.database import get_db
 from app.api.v1.endpoints.auth import get_current_user, check_permissions
-from app.schemas.material import MaterialCreate, MaterialUpdate, MaterialOut
+from app.schemas.material import MaterialCreate, MaterialUpdate, MaterialOut, MaterialPaginationOut
 from app.crud import material as crud_material
 from app.services.storage_service import StorageManager
 
+import logging
+from sqlalchemy import select
+
+logger = logging.getLogger("app.api.material")
 router = APIRouter()
+
+async def delete_material_files_if_unreferenced(db: AsyncSession, db_material, exclude_id: int):
+    # Extract URLs to delete
+    urls_to_delete = []
+    if db_material.thumbnail:
+        urls_to_delete.append(db_material.thumbnail)
+    if db_material.config_data and isinstance(db_material.config_data, dict):
+        url = db_material.config_data.get("url")
+        if url:
+            urls_to_delete.append(url)
+            
+    if not urls_to_delete:
+        return
+
+    # Check if any URL is referenced elsewhere
+    from app.models.material import Material
+    from app.models.screen import Screen
+    from app.services.storage_service import _extract_urls_from_json, StorageManager
+
+    # Pre-load screens and screen URLs
+    result_s = await db.execute(select(Screen).filter(Screen.del_flag == "0"))
+    screen_urls = set()
+    for s in result_s.scalars().all():
+        if s.thumbnail:
+            screen_urls.add(s.thumbnail)
+        if s.project_data:
+            _extract_urls_from_json(s.project_data, screen_urls)
+
+    provider = None
+    for url in urls_to_delete:
+        # Check other materials' thumbnail
+        q_thumb = select(Material).filter(
+            Material.thumbnail == url,
+            Material.id != exclude_id,
+            Material.del_flag == "0"
+        )
+        res_thumb = await db.execute(q_thumb)
+        if res_thumb.scalars().first():
+            continue
+            
+        # Check other materials' config_data
+        q_geojson = select(Material).filter(
+            Material.category == "geojson",
+            Material.id != exclude_id,
+            Material.del_flag == "0"
+        )
+        res_geojson = await db.execute(q_geojson)
+        referenced_in_geojson = False
+        for m in res_geojson.scalars().all():
+            if m.config_data and isinstance(m.config_data, dict) and m.config_data.get("url") == url:
+                referenced_in_geojson = True
+                break
+        if referenced_in_geojson:
+            continue
+            
+        # Check screens
+        if url in screen_urls:
+            continue
+            
+        # If not referenced, delete it from storage
+        try:
+            if not provider:
+                provider = await StorageManager.get_provider(db)
+            await provider.delete_file(url)
+            logger.info(f"Successfully deleted unreferenced file: {url}")
+        except Exception as e:
+            logger.error(f"Failed to delete file {url} for material {exclude_id}: {e}")
 
 @router.post("/upload")
 async def upload_material_file(
@@ -58,26 +129,38 @@ async def delete_material_file(
             detail=f"文件删除失败: {str(e)}"
         )
 
-@router.get("/official", response_model=List[MaterialOut])
+@router.get("/official", response_model=MaterialPaginationOut)
 async def list_official_materials(
     category: Optional[str] = None,
+    name: Optional[str] = Query(None, description="模糊搜索素材名称"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页大小"),
     db: AsyncSession = Depends(get_db)
 ):
     """
     获取官方内置素材模版列表（公开接口，免鉴权，方便编辑器免登录使用，或普通用户浏览）
     """
-    return await crud_material.get_official_materials(db, category)
+    total, items = await crud_material.get_official_materials(
+        db, category=category, name=name, page=page, page_size=page_size
+    )
+    return {"total": total, "items": items}
 
-@router.get("/my", response_model=List[MaterialOut])
+@router.get("/my", response_model=MaterialPaginationOut)
 async def list_my_materials(
     category: Optional[str] = None,
+    name: Optional[str] = Query(None, description="模糊搜索素材名称"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页大小"),
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
     """
     获取当前用户专属的 DIY 素材列表
     """
-    return await crud_material.get_user_materials(db, current_user.id, category)
+    total, items = await crud_material.get_user_materials(
+        db, user_id=current_user.id, category=category, name=name, page=page, page_size=page_size
+    )
+    return {"total": total, "items": items}
 
 @router.post("/pull/{official_id}", response_model=MaterialOut)
 async def pull_official_material(
@@ -159,6 +242,8 @@ async def delete_my_material(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="无权操作此素材"
         )
+    # Clean up files from storage if they are not referenced elsewhere
+    await delete_material_files_if_unreferenced(db, db_material, material_id)
     await crud_material.delete_material(db, material_id)
     return None
 
@@ -210,6 +295,8 @@ async def delete_official_material(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="官方素材未找到"
         )
+    # Clean up files from storage if they are not referenced elsewhere
+    await delete_material_files_if_unreferenced(db, db_material, material_id)
     await crud_material.delete_material(db, material_id)
     return None
 
