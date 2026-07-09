@@ -93,11 +93,17 @@ const previewContent = ref('')
 
 function getCorsSafeUrl(url: string | null | undefined): string {
   if (!url) return ''
+  if (url.startsWith('/api/') || url.startsWith('api/')) {
+    return url
+  }
   if (url.startsWith('http://') || url.startsWith('https://')) {
     try {
       const urlObj = new URL(url)
       if (urlObj.pathname.startsWith('/uploads')) {
         return urlObj.pathname
+      }
+      if (urlObj.pathname.startsWith('/api')) {
+        return urlObj.pathname + urlObj.search
       }
     } catch (_) {}
     return url

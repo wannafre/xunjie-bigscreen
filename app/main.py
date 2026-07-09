@@ -58,10 +58,10 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
 
-# Mount uploads static folder
+# Create uploads folder locally if it doesn't exist
 if not os.path.exists("uploads"):
     os.makedirs("uploads")
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")  # Disabled for security URL signing
 
 # Include routers
 app.include_router(api_router, prefix=settings.API_V1_STR)

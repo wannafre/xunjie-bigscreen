@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, Any
 from datetime import datetime
 
@@ -32,6 +32,20 @@ class MaterialOut(MaterialBase):
     create_time: datetime = Field(..., description="创建时间")
     update_by: Optional[str] = Field(None, description="更新者")
     update_time: Optional[datetime] = Field(None, description="更新时间")
+
+    @model_validator(mode="after")
+    def sign_resource_urls(self):
+        from app.services.signature_service import LocalPresignedUrlManager
+        
+        # 1. Sign thumbnail
+        if self.thumbnail and not self.thumbnail.startswith(("http://", "https://", "data:", "blob:")):
+            self.thumbnail = LocalPresignedUrlManager.generate_presigned_url(self.thumbnail)
+            
+        # 2. Sign config_data recursively
+        if self.config_data:
+            self.config_data = LocalPresignedUrlManager.sign_urls_in_json(self.config_data)
+                
+        return self
 
     class Config:
         from_attributes = True

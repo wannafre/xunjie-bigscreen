@@ -321,3 +321,71 @@ async def cleanup_unused_files(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"临时文件清理失败: {str(e)}"
         )
+
+@router.get("/files/view")
+async def view_private_file(
+    path: str = Query(..., description="相对文件路径"),
+    expires: int = Query(..., description="到期时间戳"),
+    signature: str = Query(..., description="安全签名")
+):
+    """
+    有时效性与签名校验的本地私有文件流式输出接口
+    """
+    import os
+    import time
+    import hmac
+    import hashlib
+    from fastapi.responses import FileResponse
+    from app.core.config import settings
+
+    # 1. 校验是否超时
+    current_time = int(time.time())
+    if current_time > expires:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="该资源链接已过期"
+        )
+        
+    # 2. 重新计算签名并对比
+    string_to_sign = f"{path}:{expires}"
+    expected_signature = hmac.new(
+        settings.SECRET_KEY.encode('utf-8'),
+        string_to_sign.encode('utf-8'),
+        digestmod=hashlib.sha256
+    ).hexdigest()
+    
+    if not hmac.compare_digest(signature, expected_signature):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="签名无效，无权访问"
+        )
+        
+    # 3. 防目录穿越安全拦截
+    UPLOAD_DIR = "uploads"
+    real_base = os.path.abspath(UPLOAD_DIR)
+    
+    clean_path = path.lstrip("/")
+    # 如果路径已经以 uploads/ 开头，避免重复拼接
+    if clean_path.startswith(f"{UPLOAD_DIR}/"):
+        relative_path_in_uploads = clean_path[len(UPLOAD_DIR)+1:]
+    else:
+        relative_path_in_uploads = clean_path
+        
+    target_path = os.path.abspath(os.path.join(real_base, relative_path_in_uploads))
+    if not target_path.startswith(real_base):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="非法的路径访问请求"
+        )
+        
+    # 4. 判断文件是否存在
+    if not os.path.exists(target_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="文件不存在"
+        )
+        
+    # 5. 安全输出文件数据
+    return FileResponse(target_path)
+
+
