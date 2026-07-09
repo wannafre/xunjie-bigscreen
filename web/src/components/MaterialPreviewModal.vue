@@ -56,7 +56,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { IconExclamationCircleFill } from '@arco-design/web-vue/es/icon'
-import { resolveImageUrl } from '../utils'
+import { resolveImageUrl, escapeXml, isSvgUrl } from '../utils'
 import { getOfficialMaterials } from '../api/material'
 
 // Dynamic import for ECharts to prevent crash if not yet installed
@@ -163,7 +163,7 @@ async function registerMapFromMaterialInModal(mapName: string, material: any) {
     if (!relativeUrl) return
     const fileUrl = getCorsSafeUrl(relativeUrl)
     
-    if (relativeUrl.toLowerCase().endsWith('.svg')) {
+    if (isSvgUrl(relativeUrl)) {
       const res = await fetch(fileUrl)
       if (res.ok) {
         const svgText = await res.text()
@@ -173,7 +173,7 @@ async function registerMapFromMaterialInModal(mapName: string, material: any) {
       const dimensions = await getImageDimensions(fileUrl)
       const svgText = `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dimensions.width} ${dimensions.height}">
-          <image href="${fileUrl}" width="${dimensions.width}" height="${dimensions.height}" x="0" y="0" />
+          <image href="${escapeXml(fileUrl)}" width="${dimensions.width}" height="${dimensions.height}" x="0" y="0" />
         </svg>
       `.trim()
       echartsModule.registerMap(mapName, { svg: svgText })

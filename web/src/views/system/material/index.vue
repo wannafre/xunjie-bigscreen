@@ -120,7 +120,7 @@ import { IconPlus } from '@arco-design/web-vue/es/icon'
 import { 
   getOfficialMaterials, deleteOfficialMaterial 
 } from '../../../api/material'
-import { formatDate, resolveImageUrl } from '../../../utils'
+import { formatDate, resolveImageUrl, escapeXml, isSvgUrl } from '../../../utils'
 import * as echarts from 'echarts'
 import MaterialEditModal from '../../../components/MaterialEditModal.vue'
 
@@ -293,7 +293,7 @@ async function registerMapFromMaterialInIndex(mapName: string, material: any) {
     if (!relativeUrl) return
     const fileUrl = getCorsSafeUrl(relativeUrl)
     
-    if (relativeUrl.toLowerCase().endsWith('.svg')) {
+    if (isSvgUrl(relativeUrl)) {
       const res = await fetch(fileUrl)
       if (res.ok) {
         const svgText = await res.text()
@@ -304,7 +304,7 @@ async function registerMapFromMaterialInIndex(mapName: string, material: any) {
       const dimensions = await getImageDimensions(fileUrl)
       const svgText = `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dimensions.width} ${dimensions.height}">
-          <image href="${fileUrl}" width="${dimensions.width}" height="${dimensions.height}" x="0" y="0" />
+          <image href="${escapeXml(fileUrl)}" width="${dimensions.width}" height="${dimensions.height}" x="0" y="0" />
         </svg>
       `.trim()
       echarts.registerMap(mapName, { svg: svgText })

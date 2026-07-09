@@ -118,3 +118,43 @@ export function resolveImageUrl(path: string | null | undefined): string {
   const prefix = import.meta.env.VITE_APP_RESOURCE_PREFIX || ''
   return `${prefix.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
 }
+
+/**
+ * Escapes special characters for XML to prevent DOMParser parsing errors.
+ */
+export function escapeXml(unsafe: string): string {
+  return unsafe.replace(/[<>&'"]/g, (c) => {
+    switch (c) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '&': return '&amp;';
+      case '\'': return '&apos;';
+      case '"': return '&quot;';
+      default: return c;
+    }
+  });
+}
+
+/**
+ * Checks if a URL or path represents an SVG resource, taking signed query parameters into account.
+ */
+export function isSvgUrl(url: string | null | undefined): boolean {
+  if (!url) return false
+  try {
+    const urlObj = new URL(url, window.location.origin)
+    if (urlObj.pathname.toLowerCase().endsWith('.svg')) {
+      return true
+    }
+    const pathParam = urlObj.searchParams.get('path')
+    if (pathParam && pathParam.toLowerCase().endsWith('.svg')) {
+      return true
+    }
+  } catch (_) {}
+  const cleanUrl = url.split('?')[0].split('#')[0]
+  if (cleanUrl.toLowerCase().endsWith('.svg')) {
+    return true
+  }
+  return url.toLowerCase().includes('.svg')
+}
+
+
