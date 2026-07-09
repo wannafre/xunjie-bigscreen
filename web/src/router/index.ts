@@ -9,14 +9,16 @@ const modules = import.meta.glob('../views/**/*.vue')
 
 const routes: Array<RouteRecordRaw> = [
   {
-    path: '/login',
+    path: '/',
+    name: 'Landing',
+    component: () => import('../views/landing/index.vue'),
+    meta: { title: '迅捷大屏 - 智能数据大屏与可视化协作平台' }
+  },
+  {
+    path: '/manager/login',
     name: 'Login',
     component: () => import('../views/login/index.vue'),
     meta: { title: '登录' }
-  },
-  {
-    path: '/',
-    redirect: '/manager'
   },
   {
     path: '/manager',
@@ -58,7 +60,7 @@ const router = createRouter({
 })
 
 // Navigation Guard
-const whiteList = ['/login']
+const whiteList = ['/manager/login', '/']
 let isRoutesGenerated = false
 
 // Reset routes generation flag on logout / session end
@@ -133,7 +135,7 @@ router.beforeEach(async (to, _from) => {
   const token = userStore.token
 
   if (token) {
-    if (to.path === '/login') {
+    if (to.path === '/manager/login') {
       return { path: '/manager' }
     } else {
       // Check if we have user info
@@ -144,7 +146,7 @@ router.beforeEach(async (to, _from) => {
           return { ...to, replace: true }
         } catch (error) {
           userStore.clearToken()
-          return `/login?redirect=${to.path}`
+          return `/manager/login?redirect=${to.path}`
         }
       } else {
         if (!isRoutesGenerated) {
@@ -158,7 +160,7 @@ router.beforeEach(async (to, _from) => {
     if (whiteList.indexOf(to.path) !== -1) {
       // return undefined to allow navigation
     } else {
-      return `/login?redirect=${to.path}`
+      return `/manager/login?redirect=${to.path}`
     }
   }
 })

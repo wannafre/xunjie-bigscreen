@@ -1,9 +1,10 @@
 <template>
   <router-view />
+  <LoginDialog />
 </template>
 
 <script setup lang="ts">
-// App root container
+import LoginDialog from './components/LoginDialog.vue'
 </script>
 
 <style>

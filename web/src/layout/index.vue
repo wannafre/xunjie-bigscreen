@@ -75,7 +75,7 @@ function goToProfile() {
 async function handleLogout() {
   await userStore.logout()
   Message.success('已安全退出登录')
-  router.push('/login')
+  router.push('/manager/login')
 }
 
 onMounted(() => {
